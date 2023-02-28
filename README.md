@@ -1,3 +1,5 @@
+Edit your JSON object with the help of this package. You can create new objects and delete the existing using this user friendly widget.
+
 ## Features
 
 ![JSON Editor](https://github.com/SanjaySodani/media/blob/main/jsoneditor.png "JSON Editor")
