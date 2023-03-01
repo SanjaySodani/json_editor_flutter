@@ -1,4 +1,4 @@
-Edit your JSON object with the help of this package. You can create new objects and delete the existing using this user friendly widget.
+Edit your JSON object with the help of this package. Create and delete objects using this user friendly widget.
 
 ## Features
 

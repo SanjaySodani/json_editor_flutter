@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+/// `ValueNotifier` for expanding and collapsing all objects
+final _isExpanded = ValueNotifier<bool>(false);
+
 /// Left padding to show an `Object` is nested
 const double paddingLeft = 12;
 
@@ -17,6 +20,9 @@ const double spaceLeft = 20;
 
 /// Font size
 const double textSize = 16;
+
+/// Toolbar buttons width
+const double toolbarButtonWidth = 40;
 
 /// Data Types JsonEditor can work with
 enum _Types {
@@ -451,21 +457,31 @@ Widget _buildKeyValue(key, value, parent, StateSetter setState) {
 
 Widget _buildWidget(key, value, parent, StateSetter setState) {
   if (value is Map) {
-    return _JsonFolder(
-      key: UniqueKey(),
-      objectKey: key,
-      value: value,
-      parent: parent,
-      setState: setState,
-    );
+    return AnimatedBuilder(
+        animation: _isExpanded,
+        builder: (context, _) {
+          return _JsonFolder(
+            key: UniqueKey(),
+            objectKey: key,
+            value: value,
+            parent: parent,
+            setState: setState,
+            initiallyExpanded: _isExpanded.value,
+          );
+        });
   } else if (value is List) {
-    return _ListFolder(
-      key: UniqueKey(),
-      listKey: key,
-      value: value,
-      parent: parent,
-      setState: setState,
-    );
+    return AnimatedBuilder(
+        animation: _isExpanded,
+        builder: (context, _) {
+          return _ListFolder(
+            key: UniqueKey(),
+            listKey: key,
+            value: value,
+            parent: parent,
+            setState: setState,
+            initiallyExpanded: _isExpanded.value,
+          );
+        });
   } else {
     return _buildKeyValue(key, value, parent, setState);
   }
@@ -477,6 +493,7 @@ class _ListFolder extends StatefulWidget {
   final dynamic listKey;
   final dynamic parent;
   final StateSetter setState;
+  final bool initiallyExpanded;
 
   const _ListFolder({
     super.key,
@@ -484,6 +501,7 @@ class _ListFolder extends StatefulWidget {
     required this.value,
     required this.parent,
     required this.setState,
+    required this.initiallyExpanded,
   });
 
   @override
@@ -491,7 +509,7 @@ class _ListFolder extends StatefulWidget {
 }
 
 class _ListFolderState extends State<_ListFolder> {
-  bool isFolderVisible = false;
+  late bool isFolderVisible;
 
   List<Widget> _listBuilder() {
     List<Widget> list = [];
@@ -501,6 +519,12 @@ class _ListFolderState extends State<_ListFolder> {
     }
 
     return list;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    isFolderVisible = widget.initiallyExpanded;
   }
 
   @override
@@ -580,6 +604,7 @@ class _JsonFolder extends StatefulWidget {
   final dynamic objectKey;
   final dynamic parent;
   final StateSetter setState;
+  final bool initiallyExpanded;
 
   const _JsonFolder({
     super.key,
@@ -587,6 +612,7 @@ class _JsonFolder extends StatefulWidget {
     required this.value,
     required this.parent,
     required this.setState,
+    required this.initiallyExpanded,
   });
 
   @override
@@ -594,7 +620,13 @@ class _JsonFolder extends StatefulWidget {
 }
 
 class _JsonFolderState extends State<_JsonFolder> {
-  bool isFolderVisible = false;
+  late bool isFolderVisible;
+
+  @override
+  void initState() {
+    super.initState();
+    isFolderVisible = widget.initiallyExpanded;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -751,22 +783,64 @@ class _JsonEditorState extends State<JsonEditor> {
                 const SizedBox(width: 10),
                 const Text('JsonEditor'),
                 const Spacer(),
-                Tooltip(
-                  message: 'Copy object',
-                  child: TextButton(
-                    onPressed: json.containsKey('object') ? copyData : null,
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.black,
+                SizedBox(
+                  width: 30,
+                  child: Tooltip(
+                    message: 'Expand all',
+                    child: TextButton(
+                      onPressed: json.containsKey('object')
+                          ? () => _isExpanded.value = true
+                          : null,
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.all(0),
+                      ),
+                      child: const Icon(Icons.expand, size: 20),
                     ),
-                    child: const Icon(Icons.copy, size: 20),
                   ),
                 ),
-                TextButton.icon(
-                  onPressed: json.containsKey('object') ? handleSave : null,
-                  icon: const Icon(Icons.save, size: 20),
-                  label: const Text('Save'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.black,
+                SizedBox(
+                  width: 30,
+                  child: Tooltip(
+                    message: 'Collapse all',
+                    child: TextButton(
+                      onPressed: json.containsKey('object')
+                          ? () => _isExpanded.value = false
+                          : null,
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.all(0),
+                      ),
+                      child: const Icon(Icons.compress, size: 20),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 30,
+                  child: Tooltip(
+                    message: 'Copy',
+                    child: TextButton(
+                      onPressed: json.containsKey('object') ? copyData : null,
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.all(0),
+                      ),
+                      child: const Icon(Icons.copy, size: 20),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 30,
+                  child: Tooltip(
+                    message: 'Save',
+                    child: TextButton(
+                      onPressed: json.containsKey('object') ? handleSave : null,
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.all(0),
+                      ),
+                      child: const Icon(Icons.save, size: 20),
+                    ),
                   ),
                 ),
               ],
