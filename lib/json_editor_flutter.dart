@@ -38,6 +38,7 @@ enum _AddingFor {
   map,
 }
 
+// Add an item to list
 void _addListItem(BuildContext ctx, _Types type, Function onSubmitted) {
   if (type == _Types.bool) {
     onSubmitted(false);
@@ -124,7 +125,7 @@ void _addListItem(BuildContext ctx, _Types type, Function onSubmitted) {
                     },
                     icon: const Icon(
                       Icons.check,
-                      color: Colors.amber,
+                      color: Colors.green,
                     ),
                   ),
                 ],
@@ -146,6 +147,7 @@ void _addListItem(BuildContext ctx, _Types type, Function onSubmitted) {
   );
 }
 
+// add an item to map
 void _addMapItem(
   BuildContext ctx,
   _Types type,
@@ -257,7 +259,7 @@ void _addMapItem(
                     },
                     icon: const Icon(
                       Icons.check,
-                      color: Colors.amber,
+                      color: Colors.green,
                     ),
                   ),
                 ],
@@ -279,6 +281,7 @@ void _addMapItem(
   );
 }
 
+// Builds popupmenu item for item type
 PopupMenuItem _buildPopupItem(_Types type, Icon icon, String label) {
   return PopupMenuItem(
     height: 30,
@@ -295,6 +298,7 @@ PopupMenuItem _buildPopupItem(_Types type, Icon icon, String label) {
   );
 }
 
+// Builds popup menu to choose a type for addition
 Widget _buildPopupMenu(
   BuildContext ctx,
   _AddingFor addingFor,
@@ -339,6 +343,7 @@ Widget _buildPopupMenu(
   );
 }
 
+// Builds a row with key and value
 Widget _buildKeyValue(key, value, parent, StateSetter setState) {
   if (value is Map || value is List) {
     return _buildWidget(key, value, parent, setState);
@@ -455,6 +460,7 @@ Widget _buildKeyValue(key, value, parent, StateSetter setState) {
   }
 }
 
+// Builds a folder widget or a key value
 Widget _buildWidget(key, value, parent, StateSetter setState) {
   if (value is Map) {
     return AnimatedBuilder(
@@ -724,6 +730,9 @@ class JsonEditor extends StatefulWidget {
   /// `callback` onSaved
   final ValueChanged<Map> onSaved;
 
+  /// `Color?` Theme color for the editor
+  final Color? color;
+
   /// JsonEditor, `json` is required
   ///
   /// Edit Json/Map in a user friendly UI.
@@ -733,6 +742,7 @@ class JsonEditor extends StatefulWidget {
     required this.onSaved,
     this.height,
     this.width,
+    this.color,
   });
 
   @override
@@ -760,6 +770,8 @@ class _JsonEditorState extends State<JsonEditor> {
 
   @override
   Widget build(BuildContext context) {
+    Color themeColor = widget.color ?? Theme.of(context).primaryColor;
+
     return Container(
       constraints: BoxConstraints.loose(Size(
         widget.width ?? editorWidth,
@@ -768,7 +780,7 @@ class _JsonEditorState extends State<JsonEditor> {
       decoration: BoxDecoration(
         border: Border.all(
           width: 0.75,
-          color: Colors.amber,
+          color: themeColor,
         ),
       ),
       child: Column(
@@ -777,7 +789,7 @@ class _JsonEditorState extends State<JsonEditor> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            color: Colors.amber,
+            color: themeColor,
             child: Row(
               children: [
                 const SizedBox(width: 10),
