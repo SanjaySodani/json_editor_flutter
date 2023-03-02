@@ -1,3 +1,7 @@
+# 0.0.4
+- [Fix] Bidirectional scrolling
+- [Change] Delete Icon on the left
+
 # 0.0.3
 - [Added] color `Color?` parameter for editor theme
 

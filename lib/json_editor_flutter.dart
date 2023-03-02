@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 final _isExpanded = ValueNotifier<bool>(false);
 
 /// Left padding to show an `Object` is nested
-const double paddingLeft = 12;
+const double nestingSpace = 6;
 
 /// Editor height
 const double editorHeight = 250;
@@ -24,6 +24,19 @@ const double textSize = 16;
 /// Toolbar buttons width
 const double toolbarButtonWidth = 40;
 
+/// Delete icon size
+const double deleteIconSize = 20;
+
+/// Text field width
+const double textFieldWidth = 120;
+
+/// Delete Icon
+const Widget deleteIcon = Icon(
+  Icons.delete,
+  color: Colors.red,
+  size: deleteIconSize,
+);
+
 /// Data Types JsonEditor can work with
 enum _Types {
   number,
@@ -39,7 +52,11 @@ enum _AddingFor {
 }
 
 // Add an item to list
-void _addListItem(BuildContext ctx, _Types type, Function onSubmitted) {
+void _addListItem({
+  required BuildContext ctx,
+  required _Types type,
+  required Function onSubmitted,
+}) {
   if (type == _Types.bool) {
     onSubmitted(false);
     return;
@@ -148,12 +165,12 @@ void _addListItem(BuildContext ctx, _Types type, Function onSubmitted) {
 }
 
 // add an item to map
-void _addMapItem(
-  BuildContext ctx,
-  _Types type,
-  List keys,
-  Function onSubmitted,
-) {
+void _addMapItem({
+  required BuildContext ctx,
+  required _Types type,
+  required List keys,
+  required Function onSubmitted,
+}) {
   String key = '';
   String value = '';
   String fbText = '';
@@ -310,9 +327,18 @@ Widget _buildPopupMenu(
     padding: EdgeInsets.zero,
     onSelected: (value) {
       if (addingFor == _AddingFor.map) {
-        _addMapItem(ctx, value as _Types, keys, onSubmitted);
+        _addMapItem(
+          ctx: ctx,
+          type: value as _Types,
+          keys: keys,
+          onSubmitted: onSubmitted,
+        );
       } else {
-        _addListItem(ctx, value as _Types, onSubmitted);
+        _addListItem(
+          ctx: ctx,
+          type: value as _Types,
+          onSubmitted: onSubmitted,
+        );
       }
     },
     itemBuilder: (context) {
@@ -344,20 +370,45 @@ Widget _buildPopupMenu(
 }
 
 // Builds a row with key and value
-Widget _buildKeyValue(key, value, parent, StateSetter setState) {
+Widget _buildKeyValue({
+  required key,
+  required value,
+  required parent,
+  required StateSetter setState,
+  required double paddingLeft,
+}) {
   if (value is Map || value is List) {
-    return _buildWidget(key, value, parent, setState);
+    return _buildWidget(
+      key: key,
+      value: value,
+      parent: parent,
+      setState: setState,
+      paddingLeft: paddingLeft,
+    );
   } else {
     if (value is num) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          InkWell(
+            onTap: () {
+              if (parent is Map) {
+                parent.remove(key);
+              } else {
+                (parent as List).removeAt(key);
+              }
+              setState(() {});
+            },
+            child: deleteIcon,
+          ),
+          SizedBox(width: paddingLeft),
           const SizedBox(width: spaceLeft),
           Text(
             '$key : ',
             style: const TextStyle(fontSize: textSize),
           ),
-          Expanded(
+          SizedBox(
+            width: textFieldWidth,
             child: _NumberInputField(
               stateKey: UniqueKey(),
               objKey: key,
@@ -367,6 +418,12 @@ Widget _buildKeyValue(key, value, parent, StateSetter setState) {
               },
             ),
           ),
+        ],
+      );
+    } else if (value is bool) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           InkWell(
             onTap: () {
               if (parent is Map) {
@@ -376,24 +433,16 @@ Widget _buildKeyValue(key, value, parent, StateSetter setState) {
               }
               setState(() {});
             },
-            child: const Icon(
-              Icons.delete,
-              color: Colors.red,
-              size: 20,
-            ),
+            child: deleteIcon,
           ),
-        ],
-      );
-    } else if (value is bool) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+          SizedBox(width: paddingLeft),
           const SizedBox(width: spaceLeft),
           Text(
             '$key : ',
             style: const TextStyle(fontSize: textSize),
           ),
-          Expanded(
+          SizedBox(
+            width: textFieldWidth,
             child: _BoolInputField(
               key: UniqueKey(),
               objKey: key,
@@ -403,6 +452,12 @@ Widget _buildKeyValue(key, value, parent, StateSetter setState) {
               },
             ),
           ),
+        ],
+      );
+    } else {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           InkWell(
             onTap: () {
               if (parent is Map) {
@@ -412,24 +467,16 @@ Widget _buildKeyValue(key, value, parent, StateSetter setState) {
               }
               setState(() {});
             },
-            child: const Icon(
-              Icons.delete,
-              color: Colors.red,
-              size: 20,
-            ),
+            child: deleteIcon,
           ),
-        ],
-      );
-    } else {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+          SizedBox(width: paddingLeft),
           const SizedBox(width: spaceLeft),
           Text(
             '$key : ',
             style: const TextStyle(fontSize: textSize),
           ),
-          Expanded(
+          SizedBox(
+            width: textFieldWidth,
             child: _StringInputField(
               stateKey: UniqueKey(),
               objKey: key,
@@ -439,21 +486,6 @@ Widget _buildKeyValue(key, value, parent, StateSetter setState) {
               },
             ),
           ),
-          InkWell(
-            onTap: () {
-              if (parent is Map) {
-                parent.remove(key);
-              } else {
-                (parent as List).removeAt(key);
-              }
-              setState(() {});
-            },
-            child: const Icon(
-              Icons.delete,
-              color: Colors.red,
-              size: 20,
-            ),
-          ),
         ],
       );
     }
@@ -461,7 +493,13 @@ Widget _buildKeyValue(key, value, parent, StateSetter setState) {
 }
 
 // Builds a folder widget or a key value
-Widget _buildWidget(key, value, parent, StateSetter setState) {
+Widget _buildWidget({
+  required key,
+  required value,
+  required parent,
+  required StateSetter setState,
+  required double paddingLeft,
+}) {
   if (value is Map) {
     return AnimatedBuilder(
         animation: _isExpanded,
@@ -473,6 +511,7 @@ Widget _buildWidget(key, value, parent, StateSetter setState) {
             parent: parent,
             setState: setState,
             initiallyExpanded: _isExpanded.value,
+            paddingLeft: paddingLeft,
           );
         });
   } else if (value is List) {
@@ -486,10 +525,17 @@ Widget _buildWidget(key, value, parent, StateSetter setState) {
             parent: parent,
             setState: setState,
             initiallyExpanded: _isExpanded.value,
+            paddingLeft: paddingLeft,
           );
         });
   } else {
-    return _buildKeyValue(key, value, parent, setState);
+    return _buildKeyValue(
+      key: key,
+      value: value,
+      parent: parent,
+      setState: setState,
+      paddingLeft: paddingLeft,
+    );
   }
 }
 
@@ -500,6 +546,7 @@ class _ListFolder extends StatefulWidget {
   final dynamic parent;
   final StateSetter setState;
   final bool initiallyExpanded;
+  final double nestSpace;
 
   const _ListFolder({
     super.key,
@@ -508,7 +555,8 @@ class _ListFolder extends StatefulWidget {
     required this.parent,
     required this.setState,
     required this.initiallyExpanded,
-  });
+    required double paddingLeft,
+  }) : nestSpace = nestingSpace + paddingLeft;
 
   @override
   State<_ListFolder> createState() => _ListFolderState();
@@ -521,7 +569,13 @@ class _ListFolderState extends State<_ListFolder> {
     List<Widget> list = [];
 
     for (int i = 0; i < widget.value.length; i++) {
-      list.add(_buildKeyValue(i, widget.value[i], widget.value, setState));
+      list.add(_buildKeyValue(
+        key: i,
+        value: widget.value[i],
+        parent: widget.value,
+        setState: setState,
+        paddingLeft: widget.nestSpace + nestingSpace,
+      ));
     }
 
     return list;
@@ -543,6 +597,18 @@ class _ListFolderState extends State<_ListFolder> {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
+            InkWell(
+              onTap: () {
+                if (widget.parent is Map) {
+                  (widget.parent as Map).remove(widget.listKey);
+                } else {
+                  (widget.parent as List).removeAt(widget.listKey);
+                }
+                widget.setState(() {});
+              },
+              child: deleteIcon,
+            ),
+            SizedBox(width: widget.nestSpace - nestingSpace),
             SizedBox(
               width: spaceLeft,
               child: InkWell(
@@ -572,32 +638,13 @@ class _ListFolderState extends State<_ListFolder> {
                 });
               },
             ),
-            const Spacer(),
-            InkWell(
-              onTap: () {
-                if (widget.parent is Map) {
-                  (widget.parent as Map).remove(widget.listKey);
-                } else {
-                  (widget.parent as List).removeAt(widget.listKey);
-                }
-                widget.setState(() {});
-              },
-              child: const Icon(
-                Icons.delete,
-                color: Colors.red,
-                size: 20,
-              ),
-            ),
           ],
         ),
         if (isFolderVisible)
-          Padding(
-            padding: const EdgeInsets.only(left: paddingLeft),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: _listBuilder(),
-            ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: _listBuilder(),
           ),
       ],
     );
@@ -611,6 +658,7 @@ class _JsonFolder extends StatefulWidget {
   final dynamic parent;
   final StateSetter setState;
   final bool initiallyExpanded;
+  final double nestSpace;
 
   const _JsonFolder({
     super.key,
@@ -619,7 +667,8 @@ class _JsonFolder extends StatefulWidget {
     required this.parent,
     required this.setState,
     required this.initiallyExpanded,
-  });
+    required double paddingLeft,
+  }) : nestSpace = nestingSpace + paddingLeft;
 
   @override
   State<_JsonFolder> createState() => _JsonFolderState();
@@ -644,6 +693,18 @@ class _JsonFolderState extends State<_JsonFolder> {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
+            InkWell(
+              onTap: () {
+                if (widget.parent is Map) {
+                  widget.parent.remove(widget.objectKey);
+                } else {
+                  (widget.parent as List).removeAt(widget.objectKey);
+                }
+                widget.setState(() {});
+              },
+              child: deleteIcon,
+            ),
+            SizedBox(width: widget.nestSpace - nestingSpace),
             SizedBox(
               width: spaceLeft,
               child: InkWell(
@@ -678,39 +739,21 @@ class _JsonFolderState extends State<_JsonFolder> {
               },
               widget.value.keys.toList(),
             ),
-            const Spacer(),
-            InkWell(
-              onTap: () {
-                if (widget.parent is Map) {
-                  widget.parent.remove(widget.objectKey);
-                } else {
-                  (widget.parent as List).removeAt(widget.objectKey);
-                }
-                widget.setState(() {});
-              },
-              child: const Icon(
-                Icons.delete,
-                color: Colors.red,
-                size: 20,
-              ),
-            ),
           ],
         ),
         if (isFolderVisible)
-          Padding(
-            padding: const EdgeInsets.only(left: paddingLeft),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: widget.value.keys.map((key) {
-                return _buildKeyValue(
-                  key,
-                  widget.value[key],
-                  widget.value,
-                  setState,
-                );
-              }).toList(),
-            ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: widget.value.keys.map((key) {
+              return _buildKeyValue(
+                key: key,
+                value: widget.value[key],
+                parent: widget.value,
+                setState: setState,
+                paddingLeft: widget.nestSpace + nestingSpace,
+              );
+            }).toList(),
           ),
       ],
     );
@@ -860,14 +903,23 @@ class _JsonEditorState extends State<JsonEditor> {
           ),
           Expanded(
             child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: json.keys.map((key) {
-                    return _buildWidget(key, json[key], json, setState);
-                  }).toList(),
+              scrollDirection: Axis.horizontal,
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: json.keys.map((key) {
+                      return _buildWidget(
+                        key: key,
+                        value: json[key],
+                        parent: json,
+                        setState: setState,
+                        paddingLeft: 0,
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
             ),
