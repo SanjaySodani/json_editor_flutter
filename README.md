@@ -31,5 +31,4 @@ JsonEditor(
 
 ## Additional information
 
-> You can raise an issue/feature request on github. \n
-> Please leave a like if you find this package useful.
+> You can raise an issue/feature request on github. <br>Please leave a like if you find this package useful.
