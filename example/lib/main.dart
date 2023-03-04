@@ -31,14 +31,14 @@ class JsonEditorExample extends StatelessWidget {
           onSaved: (value) {
             print(value);
           },
-          json: const {
-            'firstname': 'sanjay',
-            'age': 24,
-            'hobbies': ['dance', 'cricket'],
-            'other': {
-              'isGoodLooking': true,
+          json: '''{
+            "name": "sanjay",
+            "age": 24,
+            "hobbies": ["dance", "cricket"],
+            "other": {
+              "isGoodLooking": true
             }
-          },
+          }''',
         ),
       ),
     );

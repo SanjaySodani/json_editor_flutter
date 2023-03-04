@@ -13,19 +13,17 @@ Edit your JSON object with the help of this package. Create and delete objects u
 
 ```dart
 JsonEditor(
-  height: 300,
-  width: 350,
   onSaved: (value) {
     print(value);
   },
-  json: const {
+  json: '''{
     'firstname': 'sanjay',
     'age': 24,
     'hobbies': ['dance', 'cricket'],
     'other': {
-      'isGoodLooking': true,
+      'isGoodLooking': true
     }
-  },
+  }''',
 )
 ```
 

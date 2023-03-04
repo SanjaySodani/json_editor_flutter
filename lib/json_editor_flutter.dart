@@ -761,8 +761,8 @@ class _JsonFolderState extends State<_JsonFolder> {
 }
 
 class JsonEditor extends StatefulWidget {
-  /// `Map` JSON data
-  final Map<String, dynamic> json;
+  /// `String` JSON data
+  final String json;
 
   /// `double?` editor height
   final double? height;
@@ -794,11 +794,17 @@ class JsonEditor extends StatefulWidget {
 
 class _JsonEditorState extends State<JsonEditor> {
   late Map<String, dynamic> json;
+  late final bool isJsonValid;
 
   @override
   void initState() {
     super.initState();
-    json = {'object': jsonDecode(jsonEncode(widget.json))};
+    try {
+      json = {'object': jsonDecode(widget.json)};
+      isJsonValid = true;
+    } catch (_) {
+      isJsonValid = false;
+    }
   }
 
   void copyData() async {
@@ -809,6 +815,12 @@ class _JsonEditorState extends State<JsonEditor> {
 
   void handleSave() {
     widget.onSaved(json['object'] ?? {});
+  }
+
+  void undoAllChanges() {
+    setState(() {
+      json = {'object': jsonDecode(widget.json)};
+    });
   }
 
   @override
@@ -826,106 +838,129 @@ class _JsonEditorState extends State<JsonEditor> {
           color: themeColor,
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            color: themeColor,
-            child: Row(
+      child: isJsonValid
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(width: 10),
-                const Text('JsonEditor'),
-                const Spacer(),
-                SizedBox(
-                  width: 30,
-                  child: Tooltip(
-                    message: 'Expand all',
-                    child: TextButton(
-                      onPressed: json.containsKey('object')
-                          ? () => _isExpanded.value = true
-                          : null,
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.all(0),
+                Container(
+                  color: themeColor,
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 10),
+                      const Text('JsonEditor'),
+                      const Spacer(),
+                      SizedBox(
+                        width: 30,
+                        child: Tooltip(
+                          message: 'Undo all changes',
+                          child: TextButton(
+                            onPressed: undoAllChanges,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.all(0),
+                            ),
+                            child: const Icon(Icons.undo, size: 20),
+                          ),
+                        ),
                       ),
-                      child: const Icon(Icons.expand, size: 20),
-                    ),
+                      SizedBox(
+                        width: 30,
+                        child: Tooltip(
+                          message: 'Expand all',
+                          child: TextButton(
+                            onPressed: json.containsKey('object')
+                                ? () => _isExpanded.value = true
+                                : null,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.all(0),
+                            ),
+                            child: const Icon(Icons.expand, size: 20),
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 30,
+                        child: Tooltip(
+                          message: 'Collapse all',
+                          child: TextButton(
+                            onPressed: json.containsKey('object')
+                                ? () => _isExpanded.value = false
+                                : null,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.all(0),
+                            ),
+                            child: const Icon(Icons.compress, size: 20),
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 30,
+                        child: Tooltip(
+                          message: 'Copy',
+                          child: TextButton(
+                            onPressed:
+                                json.containsKey('object') ? copyData : null,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.all(0),
+                            ),
+                            child: const Icon(Icons.copy, size: 20),
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 30,
+                        child: Tooltip(
+                          message: 'Save',
+                          child: TextButton(
+                            onPressed:
+                                json.containsKey('object') ? handleSave : null,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.all(0),
+                            ),
+                            child: const Icon(Icons.save, size: 20),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                SizedBox(
-                  width: 30,
-                  child: Tooltip(
-                    message: 'Collapse all',
-                    child: TextButton(
-                      onPressed: json.containsKey('object')
-                          ? () => _isExpanded.value = false
-                          : null,
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.all(0),
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: json.keys.map((key) {
+                            return _buildWidget(
+                              key: key,
+                              value: json[key],
+                              parent: json,
+                              setState: setState,
+                              paddingLeft: 0,
+                            );
+                          }).toList(),
+                        ),
                       ),
-                      child: const Icon(Icons.compress, size: 20),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 30,
-                  child: Tooltip(
-                    message: 'Copy',
-                    child: TextButton(
-                      onPressed: json.containsKey('object') ? copyData : null,
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.all(0),
-                      ),
-                      child: const Icon(Icons.copy, size: 20),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 30,
-                  child: Tooltip(
-                    message: 'Save',
-                    child: TextButton(
-                      onPressed: json.containsKey('object') ? handleSave : null,
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.all(0),
-                      ),
-                      child: const Icon(Icons.save, size: 20),
                     ),
                   ),
                 ),
               ],
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: json.keys.map((key) {
-                      return _buildWidget(
-                        key: key,
-                        value: json[key],
-                        parent: json,
-                        setState: setState,
-                        paddingLeft: 0,
-                      );
-                    }).toList(),
-                  ),
-                ),
+            )
+          : const Center(
+              child: Text(
+                'Invalid JSON!',
+                style: TextStyle(color: Colors.red),
               ),
             ),
-          ),
-        ],
-      ),
     );
   }
 }

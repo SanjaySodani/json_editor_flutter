@@ -1,3 +1,7 @@
+# 0.1.0
+- `json` now takes a `String`
+- [Added] undo button
+
 # 0.0.4
 - [Fix] Bidirectional scrolling
 - [Change] Delete Icon on the left
