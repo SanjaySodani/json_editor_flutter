@@ -1,1083 +1,868 @@
-import 'dart:convert';
+library json_editor_flutter;
 
+import 'dart:convert';
+import 'dart:async';
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// `ValueNotifier` for expanding and collapsing all objects
-final _isExpanded = ValueNotifier<bool>(false);
-
-/// Left padding to show an `Object` is nested
-const double nestingSpace = 6;
-
-/// Editor height
-const double editorHeight = 250;
-
-/// Editor width
-const double editorWidth = 300;
-
-/// Left space for arrow icon
-const double spaceLeft = 20;
-
-/// Font size
-const double textSize = 16;
-
-/// Toolbar buttons width
-const double toolbarButtonWidth = 40;
-
-/// Delete icon size
-const double deleteIconSize = 20;
-
-/// Text field width
-const double textFieldWidth = 120;
-
-/// Delete Icon
-const Widget deleteIcon = Icon(
-  Icons.delete,
-  color: Colors.red,
-  size: deleteIconSize,
+const _space = 18.0;
+const _textStyle = TextStyle(fontSize: 16);
+const _options = Icon(Icons.more_horiz, size: 16);
+const _expandIconWidth = 10.0;
+const _rowPadding = 5.0;
+const _popupMenuHeight = 30.0;
+const _popupMenuItemPadding = 20.0;
+const _textSpacer = SizedBox(width: 5);
+const _newKey = "new_key_added";
+const _downArrow = SizedBox(
+  width: _expandIconWidth,
+  child: Icon(CupertinoIcons.arrowtriangle_down_fill, size: 14),
 );
+const _rightArrow = SizedBox(
+  width: _expandIconWidth,
+  child: Icon(CupertinoIcons.arrowtriangle_right_fill, size: 14),
+);
+const _newDataValue = {
+  _OptionItems.string: "",
+  _OptionItems.bool: false,
+  _OptionItems.num: 0,
+};
+bool _enableMoreOptions = true;
+bool _enableKeyEdit = true;
 
-/// Data Types JsonEditor can work with
-enum _Types {
-  number,
-  bool,
-  string,
-  object,
-}
+enum _OptionItems { map, list, string, bool, num, delete }
 
-/// Adding an item for
-enum _AddingFor {
-  list,
-  map,
-}
-
-// Add an item to list
-void _addListItem({
-  required BuildContext ctx,
-  required _Types type,
-  required Function onSubmitted,
-}) {
-  if (type == _Types.bool) {
-    onSubmitted(false);
-    return;
-  }
-
-  String value = '';
-  String fbText = '';
-
-  bool submitData(StateSetter setState) {
-    if (type == _Types.number) {
-      num? data = num.tryParse(value);
-      if (data == null || data.isNaN) {
-        setState(() {
-          fbText = 'Invalid number';
-        });
-        return false;
-      } else {
-        onSubmitted(data);
-        return true;
-      }
-    } else if (type == _Types.object) {
-      try {
-        onSubmitted(jsonDecode(value));
-        return true;
-      } catch (_) {
-        setState(() {
-          fbText = 'Invalid JSON';
-        });
-        return false;
-      }
-    } else {
-      onSubmitted(value);
-      return true;
-    }
-  }
-
-  showDialog(
-    context: ctx,
-    builder: (context) {
-      return StatefulBuilder(builder: (context, setState) {
-        return SimpleDialog(
-          title: const Text('Add List item'),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 12,
-          ),
-          children: [
-            SizedBox(
-              width: 250,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (type != _Types.bool)
-                    Expanded(
-                      flex: 6,
-                      child: TextFormField(
-                        onChanged: (text) {
-                          value = text;
-                        },
-                        decoration: const InputDecoration(
-                          hintText: 'value',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 12,
-                          ),
-                          isDense: true,
-                        ),
-                      ),
-                    ),
-                  IconButton(
-                    onPressed: () {
-                      if (value.isEmpty) {
-                        setState(() {
-                          fbText = 'Please enter a value!';
-                        });
-                      } else {
-                        bool isSubmitted = submitData(setState);
-                        if (isSubmitted) {
-                          Navigator.of(context).pop();
-                        }
-                      }
-                    },
-                    icon: const Icon(
-                      Icons.check,
-                      color: Colors.green,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // feedback here
-            const SizedBox(
-              height: 5,
-            ),
-            if (fbText.isNotEmpty)
-              Text(
-                fbText,
-                style: const TextStyle(color: Colors.red),
-              ),
-          ],
-        );
-      });
-    },
-  );
-}
-
-// add an item to map
-void _addMapItem({
-  required BuildContext ctx,
-  required _Types type,
-  required List keys,
-  required Function onSubmitted,
-}) {
-  String key = '';
-  String value = '';
-  String fbText = '';
-
-  bool submitData(StateSetter setState) {
-    if (type == _Types.bool) {
-      onSubmitted({'key': key, 'value': false});
-      return true;
-    } else if (type == _Types.number) {
-      num? data = num.tryParse(value);
-      if (data == null || data.isNaN) {
-        setState(() {
-          fbText = 'Invalid number';
-        });
-        return false;
-      } else {
-        onSubmitted({'key': key, 'value': data});
-        return true;
-      }
-    } else if (type == _Types.object) {
-      try {
-        onSubmitted({'key': key, 'value': jsonDecode(value)});
-        return true;
-      } catch (_) {
-        setState(() {
-          fbText = 'Invalid JSON';
-        });
-        return false;
-      }
-    } else {
-      onSubmitted({'key': key, 'value': value});
-      return true;
-    }
-  }
-
-  showDialog(
-    context: ctx,
-    builder: (context) {
-      return StatefulBuilder(builder: (context, setState) {
-        return SimpleDialog(
-          title: const Text('Add Object item'),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 12,
-          ),
-          children: [
-            SizedBox(
-              width: 250,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Expanded(
-                    flex: 4,
-                    child: TextFormField(
-                      onChanged: (value) {
-                        key = value;
-                      },
-                      decoration: const InputDecoration(
-                        hintText: 'key',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 12,
-                        ),
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-                  if (type != _Types.bool)
-                    Expanded(
-                      flex: 6,
-                      child: TextFormField(
-                        onChanged: (text) {
-                          value = text;
-                        },
-                        decoration: const InputDecoration(
-                          hintText: 'value',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 12,
-                          ),
-                          isDense: true,
-                        ),
-                      ),
-                    ),
-                  IconButton(
-                    onPressed: () {
-                      if (keys.contains(key)) {
-                        setState(() {
-                          fbText = 'Key already exists!';
-                        });
-                      } else if (key.isEmpty) {
-                        setState(() {
-                          fbText = 'Please enter a key!';
-                        });
-                      } else {
-                        bool isSubmitted = submitData(setState);
-                        if (isSubmitted) {
-                          Navigator.of(context).pop();
-                        }
-                      }
-                    },
-                    icon: const Icon(
-                      Icons.check,
-                      color: Colors.green,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // feedback here
-            const SizedBox(
-              height: 5,
-            ),
-            if (fbText.isNotEmpty)
-              Text(
-                fbText,
-                style: const TextStyle(color: Colors.red),
-              ),
-          ],
-        );
-      });
-    },
-  );
-}
-
-// Builds popupmenu item for item type
-PopupMenuItem _buildPopupItem(_Types type, Icon icon, String label) {
-  return PopupMenuItem(
-    height: 30,
-    padding: const EdgeInsets.only(left: 5),
-    value: type,
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        icon,
-        const SizedBox(width: 10),
-        Text(label, style: const TextStyle(fontSize: 14)),
-      ],
-    ),
-  );
-}
-
-// Builds popup menu to choose a type for addition
-Widget _buildPopupMenu(
-  BuildContext ctx,
-  _AddingFor addingFor,
-  Function onSubmitted, [
-  keys = const [],
-]) {
-  return PopupMenuButton(
-    tooltip: 'Add new object',
-    padding: EdgeInsets.zero,
-    onSelected: (value) {
-      if (addingFor == _AddingFor.map) {
-        _addMapItem(
-          ctx: ctx,
-          type: value as _Types,
-          keys: keys,
-          onSubmitted: onSubmitted,
-        );
-      } else {
-        _addListItem(
-          ctx: ctx,
-          type: value as _Types,
-          onSubmitted: onSubmitted,
-        );
-      }
-    },
-    itemBuilder: (context) {
-      return [
-        _buildPopupItem(
-          _Types.number,
-          const Icon(Icons.onetwothree),
-          'Numbers',
-        ),
-        _buildPopupItem(
-          _Types.bool,
-          const Icon(Icons.check_rounded),
-          'Boolean',
-        ),
-        _buildPopupItem(
-          _Types.string,
-          const Icon(Icons.abc),
-          'String',
-        ),
-        _buildPopupItem(
-          _Types.object,
-          const Icon(Icons.data_object),
-          'Object',
-        ),
-      ];
-    },
-    child: const Icon(Icons.add, size: 20),
-  );
-}
-
-// Builds a row with key and value
-Widget _buildKeyValue({
-  required key,
-  required value,
-  required parent,
-  required StateSetter setState,
-  required double paddingLeft,
-}) {
-  if (value is Map || value is List) {
-    return _buildWidget(
-      key: key,
-      value: value,
-      parent: parent,
-      setState: setState,
-      paddingLeft: paddingLeft,
-    );
-  } else {
-    if (value is num) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          InkWell(
-            onTap: () {
-              if (parent is Map) {
-                parent.remove(key);
-              } else {
-                (parent as List).removeAt(key);
-              }
-              setState(() {});
-            },
-            child: deleteIcon,
-          ),
-          SizedBox(width: paddingLeft),
-          const SizedBox(width: spaceLeft),
-          Text(
-            '$key : ',
-            style: const TextStyle(fontSize: textSize),
-          ),
-          SizedBox(
-            width: textFieldWidth,
-            child: _NumberInputField(
-              stateKey: UniqueKey(),
-              objKey: key,
-              initialData: value,
-              onChange: (objKey, data) {
-                parent[objKey] = data;
-              },
-            ),
-          ),
-        ],
-      );
-    } else if (value is bool) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          InkWell(
-            onTap: () {
-              if (parent is Map) {
-                parent.remove(key);
-              } else {
-                (parent as List).removeAt(key);
-              }
-              setState(() {});
-            },
-            child: deleteIcon,
-          ),
-          SizedBox(width: paddingLeft),
-          const SizedBox(width: spaceLeft),
-          Text(
-            '$key : ',
-            style: const TextStyle(fontSize: textSize),
-          ),
-          SizedBox(
-            width: textFieldWidth,
-            child: _BoolInputField(
-              key: UniqueKey(),
-              objKey: key,
-              initialData: value,
-              onChange: (objKey, data) {
-                parent[objKey] = data;
-              },
-            ),
-          ),
-        ],
-      );
-    } else {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          InkWell(
-            onTap: () {
-              if (parent is Map) {
-                parent.remove(key);
-              } else {
-                (parent as List).removeAt(key);
-              }
-              setState(() {});
-            },
-            child: deleteIcon,
-          ),
-          SizedBox(width: paddingLeft),
-          const SizedBox(width: spaceLeft),
-          Text(
-            '$key : ',
-            style: const TextStyle(fontSize: textSize),
-          ),
-          SizedBox(
-            width: textFieldWidth,
-            child: _StringInputField(
-              stateKey: UniqueKey(),
-              objKey: key,
-              initialData: value,
-              onChange: (objKey, data) {
-                parent[objKey] = data;
-              },
-            ),
-          ),
-        ],
-      );
-    }
-  }
-}
-
-// Builds a folder widget or a key value
-Widget _buildWidget({
-  required key,
-  required value,
-  required parent,
-  required StateSetter setState,
-  required double paddingLeft,
-}) {
-  if (value is Map) {
-    return AnimatedBuilder(
-        animation: _isExpanded,
-        builder: (context, _) {
-          return _JsonFolder(
-            key: UniqueKey(),
-            objectKey: key,
-            value: value,
-            parent: parent,
-            setState: setState,
-            initiallyExpanded: _isExpanded.value,
-            paddingLeft: paddingLeft,
-          );
-        });
-  } else if (value is List) {
-    return AnimatedBuilder(
-        animation: _isExpanded,
-        builder: (context, _) {
-          return _ListFolder(
-            key: UniqueKey(),
-            listKey: key,
-            value: value,
-            parent: parent,
-            setState: setState,
-            initiallyExpanded: _isExpanded.value,
-            paddingLeft: paddingLeft,
-          );
-        });
-  } else {
-    return _buildKeyValue(
-      key: key,
-      value: value,
-      parent: parent,
-      setState: setState,
-      paddingLeft: paddingLeft,
-    );
-  }
-}
-
-// List holder
-class _ListFolder extends StatefulWidget {
-  final List value;
-  final dynamic listKey;
-  final dynamic parent;
-  final StateSetter setState;
-  final bool initiallyExpanded;
-  final double nestSpace;
-
-  const _ListFolder({
-    super.key,
-    required this.listKey,
-    required this.value,
-    required this.parent,
-    required this.setState,
-    required this.initiallyExpanded,
-    required double paddingLeft,
-  }) : nestSpace = nestingSpace + paddingLeft;
-
-  @override
-  State<_ListFolder> createState() => _ListFolderState();
-}
-
-class _ListFolderState extends State<_ListFolder> {
-  late bool isFolderVisible;
-
-  List<Widget> _listBuilder() {
-    List<Widget> list = [];
-
-    for (int i = 0; i < widget.value.length; i++) {
-      list.add(_buildKeyValue(
-        key: i,
-        value: widget.value[i],
-        parent: widget.value,
-        setState: setState,
-        paddingLeft: widget.nestSpace + nestingSpace,
-      ));
-    }
-
-    return list;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    isFolderVisible = widget.initiallyExpanded;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            InkWell(
-              onTap: () {
-                if (widget.parent is Map) {
-                  (widget.parent as Map).remove(widget.listKey);
-                } else {
-                  (widget.parent as List).removeAt(widget.listKey);
-                }
-                widget.setState(() {});
-              },
-              child: deleteIcon,
-            ),
-            SizedBox(width: widget.nestSpace - nestingSpace),
-            SizedBox(
-              width: spaceLeft,
-              child: InkWell(
-                hoverColor: Colors.transparent,
-                splashColor: Colors.transparent,
-                onTap: () {
-                  setState(() {
-                    isFolderVisible = !isFolderVisible;
-                  });
-                },
-                child: isFolderVisible
-                    ? const Icon(Icons.arrow_drop_down_rounded)
-                    : const Icon(Icons.arrow_right_rounded),
-              ),
-            ),
-            Text(
-              '${widget.listKey} [${widget.value.length}]',
-              style: const TextStyle(fontSize: textSize),
-            ),
-            const SizedBox(width: 5),
-            _buildPopupMenu(
-              context,
-              _AddingFor.list,
-              (value) {
-                setState(() {
-                  widget.value.add(value);
-                });
-              },
-            ),
-          ],
-        ),
-        if (isFolderVisible)
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: _listBuilder(),
-          ),
-      ],
-    );
-  }
-}
-
-// Map holder
-class _JsonFolder extends StatefulWidget {
-  final Map value;
-  final dynamic objectKey;
-  final dynamic parent;
-  final StateSetter setState;
-  final bool initiallyExpanded;
-  final double nestSpace;
-
-  const _JsonFolder({
-    super.key,
-    required this.objectKey,
-    required this.value,
-    required this.parent,
-    required this.setState,
-    required this.initiallyExpanded,
-    required double paddingLeft,
-  }) : nestSpace = nestingSpace + paddingLeft;
-
-  @override
-  State<_JsonFolder> createState() => _JsonFolderState();
-}
-
-class _JsonFolderState extends State<_JsonFolder> {
-  late bool isFolderVisible;
-
-  @override
-  void initState() {
-    super.initState();
-    isFolderVisible = widget.initiallyExpanded;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            InkWell(
-              onTap: () {
-                if (widget.parent is Map) {
-                  widget.parent.remove(widget.objectKey);
-                } else {
-                  (widget.parent as List).removeAt(widget.objectKey);
-                }
-                widget.setState(() {});
-              },
-              child: deleteIcon,
-            ),
-            SizedBox(width: widget.nestSpace - nestingSpace),
-            SizedBox(
-              width: spaceLeft,
-              child: InkWell(
-                hoverColor: Colors.transparent,
-                splashColor: Colors.transparent,
-                onTap: () {
-                  setState(() {
-                    isFolderVisible = !isFolderVisible;
-                  });
-                },
-                child: isFolderVisible
-                    ? const Icon(
-                        Icons.arrow_drop_down_rounded,
-                      )
-                    : const Icon(
-                        Icons.arrow_right_rounded,
-                      ),
-              ),
-            ),
-            Text(
-              '${widget.objectKey} {${widget.value.length}}',
-              style: const TextStyle(fontSize: textSize),
-            ),
-            const SizedBox(width: 5),
-            _buildPopupMenu(
-              context,
-              _AddingFor.map,
-              (Map newItem) {
-                setState(() {
-                  widget.value[newItem['key']] = newItem['value'];
-                });
-              },
-              widget.value.keys.toList(),
-            ),
-          ],
-        ),
-        if (isFolderVisible)
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: widget.value.keys.map((key) {
-              return _buildKeyValue(
-                key: key,
-                value: widget.value[key],
-                parent: widget.value,
-                setState: setState,
-                paddingLeft: widget.nestSpace + nestingSpace,
-              );
-            }).toList(),
-          ),
-      ],
-    );
-  }
-}
+enum Editors { tree, text }
 
 class JsonEditor extends StatefulWidget {
-  /// `String` JSON data
-  final String json;
-
-  /// `double?` editor height
-  final double? height;
-
-  /// `double?` editor width
-  final double? width;
-
-  /// `callback` onSaved
-  final ValueChanged<Map> onSaved;
-
-  /// `Color?` Theme color for the editor
-  final Color? color;
-
-  /// JsonEditor, `json` is required
+  /// JSON can be edited in two ways, UI editor or text editor. You can disable
+  /// either of them.
   ///
-  /// Edit Json/Map in tree view (UI).
+  /// When UI editor is active, you can disable adding/deleting keys by using
+  /// [enableMoreOptions] and can disable key editing by using [enableKeyEdit].
+  ///
+  /// When text editor is active, it will simply ignore [enableKeyEdit] and
+  /// [enableMoreOptions].
+  ///
+  /// [duration] is the debounce time for [onChanged] function. Defaults to
+  /// 500 milliseconds.
+  ///
+  /// [editors] is the supported list of editors. First element will be
+  /// used as default editor. Defaults to `[Editors.tree, Editors.text]`.
   const JsonEditor({
     super.key,
     required this.json,
-    required this.onSaved,
-    this.height,
-    this.width,
-    this.color,
-  });
+    required this.onChanged,
+    this.duration = const Duration(milliseconds: 500),
+    this.enableMoreOptions = true,
+    this.enableKeyEdit = true,
+    this.editors = const [Editors.tree, Editors.text],
+    this.themeColor,
+  }) : assert(editors.length > 0, "editors list cannot be empty");
+
+  /// JSON string to be edited.
+  final String json;
+
+  /// Callback function that will be called with the new [Map] data.
+  final ValueChanged<Map> onChanged;
+
+  /// Debounce duration for [onChanged] function.
+  final Duration duration;
+
+  /// Enables more options like adding or deleting data. Defaults to `false`.
+  final bool enableMoreOptions;
+
+  /// Enables editing of keys. Defaults to `true`.
+  final bool enableKeyEdit;
+
+  /// Theme color for the editor. Changes the border color and header color.
+  final Color? themeColor;
+
+  /// List of supported editors. First element will be used as default editor.
+  final List<Editors> editors;
 
   @override
   State<JsonEditor> createState() => _JsonEditorState();
 }
 
 class _JsonEditorState extends State<JsonEditor> {
-  late Map<String, dynamic> json;
-  late final bool isJsonValid;
+  Timer? _timer;
+  late dynamic _data;
+  late final _themeColor = widget.themeColor ?? Theme.of(context).primaryColor;
+  late Editors _editor = widget.editors.first;
+  bool _onError = false;
+  late final _controller = TextEditingController()
+    ..text = _stringifyData(_data, 0, true);
 
-  @override
-  void initState() {
-    super.initState();
-    try {
-      json = {'object': jsonDecode(widget.json)};
-      isJsonValid = true;
-    } catch (_) {
-      isJsonValid = false;
-    }
+  void callOnChanged() {
+    if (_timer?.isActive ?? false) _timer?.cancel();
+
+    _timer = Timer(widget.duration, () {
+      widget.onChanged(_data);
+    });
+  }
+
+  void parseData(String value) {
+    if (_timer?.isActive ?? false) _timer?.cancel();
+
+    _timer = Timer(widget.duration, () {
+      try {
+        _data = jsonDecode(value);
+        widget.onChanged(_data);
+        setState(() {
+          _onError = false;
+        });
+      } catch (_) {
+        setState(() {
+          _onError = true;
+        });
+      }
+    });
   }
 
   void copyData() async {
     await Clipboard.setData(
-      ClipboardData(text: jsonEncode(json['object'])),
+      ClipboardData(text: jsonEncode(_data)),
     );
   }
 
-  void handleSave() {
-    widget.onSaved(json['object'] ?? {});
+  @override
+  void initState() {
+    super.initState();
+    _data = jsonDecode(widget.json);
+    _enableMoreOptions = widget.enableMoreOptions;
+    _enableKeyEdit = widget.enableKeyEdit;
   }
 
-  void undoAllChanges() {
-    setState(() {
-      json = {'object': jsonDecode(widget.json)};
-    });
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    Color themeColor = widget.color ?? Theme.of(context).primaryColor;
-
-    return Container(
-      constraints: BoxConstraints.loose(Size(
-        widget.width ?? editorWidth,
-        widget.height ?? editorHeight,
-      )),
+    return DecoratedBox(
       decoration: BoxDecoration(
         border: Border.all(
-          width: 0.75,
-          color: themeColor,
+          width: _onError ? 2 : 1,
+          color: _onError ? Colors.red : _themeColor,
         ),
       ),
-      child: isJsonValid
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  color: themeColor,
-                  child: Row(
-                    children: [
-                      const SizedBox(width: 10),
-                      const Text('JsonEditor'),
-                      const Spacer(),
-                      SizedBox(
-                        width: 30,
-                        child: Tooltip(
-                          message: 'Undo all changes',
-                          child: TextButton(
-                            onPressed: undoAllChanges,
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.all(0),
-                            ),
-                            child: const Icon(Icons.undo, size: 20),
-                          ),
-                        ),
+      child: SizedBox(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                  color: _themeColor,
+                  border: _onError
+                      ? const Border(
+                          bottom: BorderSide(color: Colors.red, width: 2),
+                        )
+                      : null),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 6,
+                  horizontal: 10,
+                ),
+                child: Row(
+                  children: [
+                    const Text("Json Editor", style: _textStyle),
+                    const Spacer(),
+                    PopupMenuButton<Editors>(
+                      initialValue: _editor,
+                      tooltip: 'Change editor',
+                      padding: EdgeInsets.zero,
+                      onSelected: (value) {
+                        setState(() {
+                          _editor = value;
+                        });
+                      },
+                      position: PopupMenuPosition.under,
+                      enabled: widget.editors.length > 1,
+                      constraints: const BoxConstraints(
+                        minWidth: 50,
+                        maxWidth: 150,
                       ),
-                      SizedBox(
-                        width: 30,
-                        child: Tooltip(
-                          message: 'Expand all',
-                          child: TextButton(
-                            onPressed: json.containsKey('object')
-                                ? () => _isExpanded.value = true
-                                : null,
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.all(0),
-                            ),
-                            child: const Icon(Icons.expand, size: 20),
+                      itemBuilder: (context) {
+                        return <PopupMenuEntry<Editors>>[
+                          PopupMenuItem<Editors>(
+                            height: _popupMenuHeight,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            enabled: widget.editors.contains(Editors.tree),
+                            value: Editors.tree,
+                            child: const Text("Tree"),
                           ),
-                        ),
+                          PopupMenuItem<Editors>(
+                            height: _popupMenuHeight,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            enabled: widget.editors.contains(Editors.text),
+                            value: Editors.text,
+                            child: const Text("Text"),
+                          ),
+                        ];
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(_editor.name, style: _textStyle),
+                          const Icon(Icons.arrow_drop_down, size: 20),
+                        ],
                       ),
-                      SizedBox(
-                        width: 30,
-                        child: Tooltip(
-                          message: 'Collapse all',
-                          child: TextButton(
-                            onPressed: json.containsKey('object')
-                                ? () => _isExpanded.value = false
-                                : null,
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.all(0),
-                            ),
-                            child: const Icon(Icons.compress, size: 20),
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 30,
-                        child: Tooltip(
-                          message: 'Copy',
-                          child: TextButton(
-                            onPressed:
-                                json.containsKey('object') ? copyData : null,
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.all(0),
-                            ),
-                            child: const Icon(Icons.copy, size: 20),
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 30,
-                        child: Tooltip(
-                          message: 'Save',
-                          child: TextButton(
-                            onPressed:
-                                json.containsKey('object') ? handleSave : null,
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.all(0),
-                            ),
-                            child: const Icon(Icons.save, size: 20),
-                          ),
+                    ),
+                    if (_editor == Editors.text) ...[
+                      const SizedBox(width: 20),
+                      InkWell(
+                        onTap: () {
+                          _controller.text = _stringifyData(_data, 0, true);
+                        },
+                        child: const Tooltip(
+                          message: 'Format',
+                          child: Icon(Icons.format_align_left, size: 20),
                         ),
                       ),
                     ],
-                  ),
+                    const SizedBox(width: 20),
+                    InkWell(
+                      onTap: copyData,
+                      child: const Tooltip(
+                        message: 'Copy',
+                        child: Icon(Icons.copy, size: 20),
+                      ),
+                    ),
+                  ],
                 ),
-                Expanded(
+              ),
+            ),
+            if (_editor == Editors.tree)
+              Expanded(
+                child: SingleChildScrollView(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    child: SingleChildScrollView(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: json.keys.map((key) {
-                            return _buildWidget(
-                              key: key,
-                              value: json[key],
-                              parent: json,
-                              setState: setState,
-                              paddingLeft: 0,
-                            );
-                          }).toList(),
-                        ),
-                      ),
+                    child: _Holder(
+                      key: const Key("object"),
+                      data: _data,
+                      keyName: "object",
+                      paddingLeft: _space,
+                      onChanged: callOnChanged,
+                      parentObject: {"object": _data},
+                      setState: setState,
                     ),
                   ),
                 ),
-              ],
-            )
-          : const Center(
-              child: Text(
-                'Invalid JSON!',
-                style: TextStyle(color: Colors.red),
               ),
-            ),
+            if (_editor == Editors.text)
+              Expanded(
+                child: TextFormField(
+                  controller: _controller,
+                  onChanged: parseData,
+                  maxLines: null,
+                  minLines: null,
+                  expands: true,
+                  textAlignVertical: TextAlignVertical.top,
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.only(
+                      left: 5,
+                      top: 8,
+                      bottom: 8,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-class _StringInputField extends StatelessWidget {
-  final Key stateKey;
-  final dynamic objKey;
-  final String initialData;
-  final void Function(dynamic, dynamic) onChange;
-
-  const _StringInputField({
-    required this.stateKey,
-    required this.objKey,
-    this.initialData = '',
-    required this.onChange,
+class _Holder extends StatefulWidget {
+  const _Holder({
+    super.key,
+    this.keyName,
+    required this.data,
+    required this.paddingLeft,
+    required this.onChanged,
+    required this.parentObject,
+    required this.setState,
   });
 
+  final dynamic keyName;
+  final dynamic data;
+  final double paddingLeft;
+  final VoidCallback onChanged;
+  final dynamic parentObject;
+  final StateSetter setState;
+
   @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      key: stateKey,
-      initialValue: initialData,
-      cursorHeight: 14,
-      style: const TextStyle(fontSize: textSize),
-      decoration: const InputDecoration(
-        contentPadding: EdgeInsets.all(5),
-        isDense: true,
-        hintText: 'type...',
-        border: InputBorder.none,
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: BorderSide(width: 0.5),
-        ),
-      ),
-      onChanged: (text) {
-        onChange(objKey, text);
-      },
-    );
+  State<_Holder> createState() => _HolderState();
+}
+
+class _HolderState extends State<_Holder> {
+  bool isExpanded = false;
+
+  void _toggleState() {
+    setState(() {
+      isExpanded = !isExpanded;
+    });
   }
-}
 
-class _NumberInputField extends StatelessWidget {
-  final Key stateKey;
-  final dynamic objKey;
-  final String initialValue;
-  final void Function(dynamic, dynamic) onChange;
+  void onSelected(_OptionItems selectedItem) {
+    if (selectedItem == _OptionItems.delete) {
+      if (widget.parentObject is Map) {
+        widget.parentObject.remove(widget.keyName);
+      } else {
+        widget.parentObject.removeAt(widget.keyName);
+      }
 
-  const _NumberInputField({
-    required this.stateKey,
-    required this.objKey,
-    required num initialData,
-    required this.onChange,
-  }) : initialValue = '$initialData';
+      widget.setState(() {});
+    } else if (selectedItem == _OptionItems.map) {
+      if (widget.data is Map) {
+        widget.data[_newKey] = {};
+      } else {
+        widget.data.add({});
+      }
 
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      key: stateKey,
-      initialValue: initialValue,
-      cursorHeight: 14,
-      style: const TextStyle(fontSize: textSize),
-      decoration: const InputDecoration(
-        contentPadding: EdgeInsets.all(5),
-        isDense: true,
-        hintText: 'type...',
-        border: InputBorder.none,
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: BorderSide(width: 0.5),
-        ),
-      ),
-      onChanged: (text) {
-        onChange(objKey, num.parse(text));
-      },
-    );
+      setState(() {});
+    } else if (selectedItem == _OptionItems.list) {
+      if (widget.data is Map) {
+        widget.data[_newKey] = [];
+      } else {
+        widget.data.add([]);
+      }
+
+      setState(() {});
+    } else {
+      if (widget.data is Map) {
+        widget.data[_newKey] = _newDataValue[selectedItem];
+      } else {
+        widget.data.add(_newDataValue[selectedItem]);
+      }
+
+      setState(() {});
+    }
+
+    widget.onChanged();
   }
-}
 
-class _BoolInputField extends StatefulWidget {
-  final dynamic objKey;
-  final bool initialData;
-  final void Function(dynamic, dynamic) onChange;
+  void onKeyChanged(Object key) {
+    final val = widget.parentObject.remove(widget.keyName);
+    widget.parentObject[key] = val;
 
-  const _BoolInputField({
-    Key? key,
-    required this.objKey,
-    required this.initialData,
-    required this.onChange,
-  }) : super(key: key);
+    widget.onChanged();
+    widget.setState(() {});
+  }
 
-  @override
-  State<_BoolInputField> createState() => _BoolInputFieldState();
-}
+  void onValueChanged(Object value) {
+    widget.parentObject[widget.keyName] = value;
 
-class _BoolInputFieldState extends State<_BoolInputField> {
-  late bool isChecked = widget.initialData;
+    widget.onChanged();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Transform.scale(
-          scale: 0.75,
-          child: Checkbox(
-            visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
-            value: isChecked,
-            onChanged: (newValue) {
-              widget.onChange(widget.objKey, newValue!);
-              setState(() {
-                isChecked = newValue;
-              });
-            },
+    if (widget.data is Map) {
+      final mapWidget = <Widget>[];
+
+      final List keys = widget.data.keys.toList();
+      keys.sort();
+      for (var key in keys) {
+        mapWidget.add(_Holder(
+          key: Key(key),
+          data: widget.data[key],
+          keyName: key,
+          onChanged: widget.onChanged,
+          parentObject: widget.data,
+          paddingLeft: widget.paddingLeft + _space,
+          setState: setState,
+        ));
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: _rowPadding),
+            child: Row(
+              children: [
+                const SizedBox(width: _expandIconWidth),
+                if (_enableMoreOptions) _Options<Map>(onSelected),
+                SizedBox(width: widget.paddingLeft),
+                InkWell(
+                  hoverColor: Colors.transparent,
+                  splashColor: Colors.transparent,
+                  onTap: _toggleState,
+                  child: isExpanded ? _downArrow : _rightArrow,
+                ),
+                const SizedBox(width: _expandIconWidth),
+                if (_enableKeyEdit && widget.parentObject is! List) ...[
+                  _ReplaceTextWithField(
+                    key: Key(widget.keyName.toString()),
+                    initialValue: widget.keyName,
+                    isKey: true,
+                    onChanged: onKeyChanged,
+                    setState: setState,
+                  ),
+                  _textSpacer,
+                  Text(
+                    "{${widget.data.length}}",
+                    style: _textStyle,
+                  ),
+                ] else
+                  Text(
+                    "${widget.keyName}  {${widget.data.length}}",
+                    style: _textStyle,
+                  ),
+              ],
+            ),
           ),
+          if (isExpanded)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: mapWidget,
+            ),
+        ],
+      );
+    } else if (widget.data is List) {
+      final listWidget = <Widget>[];
+
+      for (int i = 0; i < widget.data.length; i++) {
+        listWidget.add(_Holder(
+          key: Key(i.toString()),
+          keyName: i,
+          data: widget.data[i],
+          onChanged: widget.onChanged,
+          parentObject: widget.data,
+          paddingLeft: widget.paddingLeft + _space,
+          setState: setState,
+        ));
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: _rowPadding),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(width: _expandIconWidth),
+                if (_enableMoreOptions) _Options<List>(onSelected),
+                SizedBox(width: widget.paddingLeft),
+                InkWell(
+                  hoverColor: Colors.transparent,
+                  splashColor: Colors.transparent,
+                  onTap: _toggleState,
+                  child: isExpanded ? _downArrow : _rightArrow,
+                ),
+                const SizedBox(width: _expandIconWidth),
+                if (_enableKeyEdit && widget.parentObject is! List) ...[
+                  _ReplaceTextWithField(
+                    key: Key(widget.keyName.toString()),
+                    initialValue: widget.keyName,
+                    isKey: true,
+                    onChanged: onKeyChanged,
+                    setState: setState,
+                  ),
+                  _textSpacer,
+                  Text(
+                    "[${widget.data.length}]",
+                    style: _textStyle,
+                  ),
+                ] else
+                  Text(
+                    "${widget.keyName}  [${widget.data.length}]",
+                    style: _textStyle,
+                  ),
+              ],
+            ),
+          ),
+          if (isExpanded)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: listWidget,
+            ),
+        ],
+      );
+    } else {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: _rowPadding),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(width: _expandIconWidth),
+            if (_enableMoreOptions) _Options<String>(onSelected),
+            SizedBox(
+              width: widget.paddingLeft + (_expandIconWidth * 2),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ReplaceTextWithField(
+                  key: Key(widget.keyName.toString()),
+                  initialValue: widget.keyName,
+                  isKey: true,
+                  onChanged: onKeyChanged,
+                  setState: setState,
+                ),
+                const Text(' :', style: _textStyle),
+                _textSpacer,
+                _ReplaceTextWithField(
+                  key: UniqueKey(),
+                  initialValue: widget.data,
+                  onChanged: onValueChanged,
+                  setState: setState,
+                ),
+                _textSpacer,
+              ],
+            ),
+          ],
         ),
-        Text(isChecked ? 'true' : 'false'),
-      ],
+      );
+    }
+  }
+}
+
+class _ReplaceTextWithField extends StatefulWidget {
+  const _ReplaceTextWithField({
+    super.key,
+    required this.initialValue,
+    required this.onChanged,
+    required this.setState,
+    this.isKey = false,
+  });
+
+  final dynamic initialValue;
+  final bool isKey;
+  final ValueChanged<Object> onChanged;
+  final StateSetter setState;
+
+  @override
+  State<_ReplaceTextWithField> createState() => _ReplaceTextWithFieldState();
+}
+
+class _ReplaceTextWithFieldState extends State<_ReplaceTextWithField> {
+  late final _focusNode = FocusNode();
+  bool _isFocused = false;
+  bool _value = false;
+  String _text = "";
+  late final BoxConstraints _constraints;
+
+  void handleChange() {
+    if (!_focusNode.hasFocus) {
+      _text = _text.trim();
+      final val = num.tryParse(_text);
+      if (val == null) {
+        widget.onChanged(_text);
+      } else {
+        widget.onChanged(val);
+      }
+
+      setState(() {
+        _isFocused = false;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.initialValue is bool) {
+      _value = widget.initialValue;
+    } else {
+      if (widget.initialValue == _newKey) {
+        _text = "";
+        _isFocused = true;
+        _focusNode.requestFocus();
+      } else {
+        _text = widget.initialValue.toString();
+      }
+    }
+
+    if (widget.isKey) {
+      _constraints = const BoxConstraints(minWidth: 20, maxWidth: 100);
+    } else if (widget.initialValue is num) {
+      _constraints = const BoxConstraints(minWidth: 20, maxWidth: 80);
+    } else {
+      _constraints = const BoxConstraints(minWidth: 20, maxWidth: 200);
+    }
+
+    _focusNode.addListener(handleChange);
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(handleChange);
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.initialValue is bool) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Transform.scale(
+            scale: 0.75,
+            child: Checkbox(
+              visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+              value: _value,
+              onChanged: (value) {
+                widget.onChanged(value!);
+                setState(() {
+                  _value = value;
+                });
+              },
+            ),
+          ),
+          Text(_value.toString(), style: _textStyle),
+        ],
+      );
+    } else {
+      if (_isFocused) {
+        return TextFormField(
+          initialValue: _text,
+          focusNode: _focusNode,
+          onChanged: (value) => _text = value,
+          autocorrect: false,
+          cursorWidth: 1,
+          style: _textStyle,
+          cursorHeight: 12,
+          decoration: InputDecoration(
+            constraints: _constraints,
+            border: InputBorder.none,
+            fillColor: Colors.transparent,
+            filled: true,
+            isDense: true,
+            contentPadding: const EdgeInsets.all(3),
+            focusedBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.zero,
+              borderSide: BorderSide(width: 0.3),
+            ),
+          ),
+        );
+      } else {
+        return InkWell(
+          onTap: () {
+            setState(() {
+              _isFocused = true;
+            });
+            _focusNode.requestFocus();
+          },
+          mouseCursor: MaterialStateMouseCursor.textable,
+          child: widget.initialValue is String && _text.isEmpty
+              ? const SizedBox(width: 200, height: 18)
+              : Text(_text, style: _textStyle),
+        );
+      }
+    }
+  }
+}
+
+class _Options<T> extends StatelessWidget {
+  const _Options(this.onSelected);
+
+  final void Function(_OptionItems) onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<_OptionItems>(
+      tooltip: 'Add new object',
+      padding: EdgeInsets.zero,
+      onSelected: onSelected,
+      itemBuilder: (context) {
+        return <PopupMenuEntry<_OptionItems>>[
+          if (T == Map)
+            const _PopupMenuWidget(Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(width: 5),
+                Icon(Icons.add),
+                SizedBox(width: 10),
+                Text("Insert", style: TextStyle(fontSize: 14)),
+              ],
+            )),
+          if (T == List)
+            const _PopupMenuWidget(Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(width: 5),
+                Icon(Icons.add),
+                SizedBox(width: 10),
+                Text("Append", style: TextStyle(fontSize: 14)),
+              ],
+            )),
+          if (T == Map || T == List) ...[
+            const PopupMenuItem<_OptionItems>(
+              height: _popupMenuHeight,
+              padding: EdgeInsets.only(left: _popupMenuItemPadding),
+              value: _OptionItems.string,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.abc),
+                  SizedBox(width: 10),
+                  Text("String", style: TextStyle(fontSize: 14)),
+                ],
+              ),
+            ),
+            const PopupMenuItem<_OptionItems>(
+              height: _popupMenuHeight,
+              padding: EdgeInsets.only(left: _popupMenuItemPadding),
+              value: _OptionItems.num,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.onetwothree),
+                  SizedBox(width: 10),
+                  Text("Number", style: TextStyle(fontSize: 14)),
+                ],
+              ),
+            ),
+            const PopupMenuItem<_OptionItems>(
+              height: _popupMenuHeight,
+              padding: EdgeInsets.only(left: _popupMenuItemPadding),
+              value: _OptionItems.bool,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.check_rounded),
+                  SizedBox(width: 10),
+                  Text("Boolean", style: TextStyle(fontSize: 14)),
+                ],
+              ),
+            ),
+            const PopupMenuItem<_OptionItems>(
+              height: _popupMenuHeight,
+              padding: EdgeInsets.only(left: _popupMenuItemPadding),
+              value: _OptionItems.map,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.data_object),
+                  SizedBox(width: 10),
+                  Text("Object", style: TextStyle(fontSize: 14)),
+                ],
+              ),
+            ),
+            const PopupMenuItem<_OptionItems>(
+              height: _popupMenuHeight,
+              padding: EdgeInsets.only(left: _popupMenuItemPadding),
+              value: _OptionItems.list,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.data_array),
+                  SizedBox(width: 10),
+                  Text("List", style: TextStyle(fontSize: 14)),
+                ],
+              ),
+            ),
+          ],
+          const PopupMenuDivider(height: 1),
+          const PopupMenuItem<_OptionItems>(
+            height: _popupMenuHeight,
+            padding: EdgeInsets.only(left: 5),
+            value: _OptionItems.delete,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.delete),
+                SizedBox(width: 10),
+                Text("Delete", style: TextStyle(fontSize: 14)),
+              ],
+            ),
+          ),
+        ];
+      },
+      child: _options,
     );
   }
+}
+
+class _PopupMenuWidget extends PopupMenuEntry<Never> {
+  const _PopupMenuWidget(this.child);
+
+  final Widget child;
+
+  @override
+  final double height = _popupMenuHeight;
+
+  @override
+  bool represents(_) => false;
+
+  @override
+  State<_PopupMenuWidget> createState() => _PopupMenuWidgetState();
+}
+
+class _PopupMenuWidgetState extends State<_PopupMenuWidget> {
+  @override
+  Widget build(BuildContext context) {
+    return widget.child;
+  }
+}
+
+List<String> _getSpace(int count) {
+  if (count == 0) return ['', '  '];
+
+  String space = '';
+  for (int i = 0; i < count; i++) {
+    space += '  ';
+  }
+  return [space, '$space  '];
+}
+
+String _stringifyData(Object data, int spacing, [bool isLast = false]) {
+  String str = '';
+  final spaceList = _getSpace(spacing);
+  final objectSpace = spaceList[0];
+  final dataSpace = spaceList[1];
+
+  if (data is Map) {
+    str += '$objectSpace{';
+    str += '\n';
+    final keys = data.keys.toList();
+    keys.sort();
+    for (int i = 0; i < keys.length; i++) {
+      str +=
+          '$dataSpace"${keys[i]}": ${_stringifyData(data[keys[i]], spacing + 1, i == keys.length - 1)}';
+      str += '\n';
+    }
+    str += '$objectSpace}';
+    if (!isLast) str += ',';
+  } else if (data is List) {
+    str += '$objectSpace[';
+    str += '\n';
+    for (int i = 0; i < data.length; i++) {
+      final item = data[i];
+      if (item is Map || item is List) {
+        str += _stringifyData(item, spacing + 1, i == data.length - 1);
+      } else {
+        str +=
+            '$dataSpace${_stringifyData(item, spacing + 1, i == data.length - 1)}';
+      }
+      str += '\n';
+    }
+    str += '$objectSpace]';
+    if (!isLast) str += ',';
+  } else {
+    if (data is String) {
+      str = '"$data"';
+    } else {
+      str = '$data';
+    }
+    if (!isLast) str += ',';
+  }
+
+  return str;
 }

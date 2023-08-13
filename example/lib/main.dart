@@ -26,17 +26,18 @@ class JsonEditorExample extends StatelessWidget {
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: JsonEditor(
-          height: 300,
-          width: 350,
-          onSaved: (value) {
-            print(value);
+          onChanged: (value) {
+            // Do something with the value
+            // Don't call setState()
           },
           json: '''{
-            "name": "sanjay",
+            "name": "John Doe",
             "age": 24,
-            "hobbies": ["dance", "cricket"],
-            "other": {
-              "isGoodLooking": true
+            "hobbies": ["Reading", "Coding"],
+            "address": {
+              "street": "Main Street",
+              "number": 1234567890,
+              "city": "New York"
             }
           }''',
         ),

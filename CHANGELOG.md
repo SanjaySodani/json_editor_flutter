@@ -1,3 +1,12 @@
+# 1.0.0
+## Breaking changes
+- [onSaved] is replaced with [onChanged].
+- No [width] and [height] parameters.
+
+## New updates
+- Supports text editor.
+- Allows key editing in tree editor.
+
 # 0.1.0
 - `json` now takes a `String`
 - [Added] undo button
