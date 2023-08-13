@@ -2,7 +2,7 @@ Edit your JSON object with the help of this package. Create and delete objects u
 
 ## Features
 
-![JSON Editor](https://github.com/SanjaySodani/media/blob/main/jsoneditor.jpeg "JSON Editor")
+![JSON Editor](https://github.com/SanjaySodani/media/blob/main/jsoneditor.jpeg)
 
 ## Getting started
 
@@ -13,15 +13,17 @@ Edit your JSON object with the help of this package. Create and delete objects u
 
 ```dart
 JsonEditor(
-  onSaved: (value) {
-    print(value);
+  onChanged: (value) {
+    // Do something
   },
   json: '''{
-    'firstname': 'sanjay',
-    'age': 24,
-    'hobbies': ['dance', 'cricket'],
-    'other': {
-      'isGoodLooking': true
+    "name": "John Doe",
+    "age": 24,
+    "hobbies": ["Reading", "Coding"],
+    "address": {
+      "street": "Main Street",
+      "number": 1234567890,
+      "city": "New York"
     }
   }''',
 )
