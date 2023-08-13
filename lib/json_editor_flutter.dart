@@ -778,7 +778,7 @@ class JsonEditor extends StatefulWidget {
 
   /// JsonEditor, `json` is required
   ///
-  /// Edit Json/Map in a user friendly UI.
+  /// Edit Json/Map in tree view.
   const JsonEditor({
     super.key,
     required this.json,
