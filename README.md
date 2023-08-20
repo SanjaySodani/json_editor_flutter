@@ -2,7 +2,7 @@ Edit your JSON object with the help of this package. Create and delete objects u
 
 ## Features
 
-![JSON Editor](https://drive.google.com/file/d/1zflEbVtAJiAs3r0ZJUkBhwD-jiWzUhpv/view)
+![JSON Editor](https://raw.githubusercontent.com/SanjaySodani/media/main/jsoneditor.png)
 
 ## Getting started
 
