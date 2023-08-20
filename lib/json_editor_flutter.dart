@@ -31,9 +31,11 @@ const _newDataValue = {
 };
 bool _enableMoreOptions = true;
 bool _enableKeyEdit = true;
+bool _enableValueEdit = true;
 
 enum _OptionItems { map, list, string, bool, num, delete }
 
+/// Supported editors for JSON Editor.
 enum Editors { tree, text }
 
 class JsonEditor extends StatefulWidget {
@@ -58,6 +60,7 @@ class JsonEditor extends StatefulWidget {
     this.duration = const Duration(milliseconds: 500),
     this.enableMoreOptions = true,
     this.enableKeyEdit = true,
+    this.enableValueEdit = true,
     this.editors = const [Editors.tree, Editors.text],
     this.themeColor,
   }) : assert(editors.length > 0, "editors list cannot be empty");
@@ -76,6 +79,9 @@ class JsonEditor extends StatefulWidget {
 
   /// Enables editing of keys. Defaults to `true`.
   final bool enableKeyEdit;
+
+  /// Enables editing of values. Defaults to `true`.
+  final bool enableValueEdit;
 
   /// Theme color for the editor. Changes the border color and header color.
   final Color? themeColor;
@@ -134,11 +140,13 @@ class _JsonEditorState extends State<JsonEditor> {
     _data = jsonDecode(widget.json);
     _enableMoreOptions = widget.enableMoreOptions;
     _enableKeyEdit = widget.enableKeyEdit;
+    _enableValueEdit = widget.enableValueEdit;
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -250,6 +258,7 @@ class _JsonEditorState extends State<JsonEditor> {
                       onChanged: callOnChanged,
                       parentObject: {"object": _data},
                       setState: setState,
+                      isExpanded: true,
                     ),
                   ),
                 ),
@@ -289,6 +298,7 @@ class _Holder extends StatefulWidget {
     required this.onChanged,
     required this.parentObject,
     required this.setState,
+    this.isExpanded = false,
   });
 
   final dynamic keyName;
@@ -297,13 +307,14 @@ class _Holder extends StatefulWidget {
   final VoidCallback onChanged;
   final dynamic parentObject;
   final StateSetter setState;
+  final bool isExpanded;
 
   @override
   State<_Holder> createState() => _HolderState();
 }
 
 class _HolderState extends State<_Holder> {
-  bool isExpanded = false;
+  late bool isExpanded = widget.isExpanded;
 
   void _toggleState() {
     setState(() {
@@ -506,22 +517,30 @@ class _HolderState extends State<_Holder> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _ReplaceTextWithField(
-                  key: Key(widget.keyName.toString()),
-                  initialValue: widget.keyName,
-                  isKey: true,
-                  onChanged: onKeyChanged,
-                  setState: setState,
-                ),
-                const Text(' :', style: _textStyle),
+                if (_enableKeyEdit) ...[
+                  _ReplaceTextWithField(
+                    key: Key(widget.keyName.toString()),
+                    initialValue: widget.keyName,
+                    isKey: true,
+                    onChanged: onKeyChanged,
+                    setState: setState,
+                  ),
+                  const Text(' :', style: _textStyle),
+                ] else
+                  Text('${widget.keyName} :', style: _textStyle),
                 _textSpacer,
-                _ReplaceTextWithField(
-                  key: UniqueKey(),
-                  initialValue: widget.data,
-                  onChanged: onValueChanged,
-                  setState: setState,
-                ),
-                _textSpacer,
+                if (_enableValueEdit) ...[
+                  _ReplaceTextWithField(
+                    key: UniqueKey(),
+                    initialValue: widget.data,
+                    onChanged: onValueChanged,
+                    setState: setState,
+                  ),
+                  _textSpacer,
+                ] else ...[
+                  Text(widget.data.toString(), style: _textStyle),
+                  _textSpacer,
+                ],
               ],
             ),
           ],

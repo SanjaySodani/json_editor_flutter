@@ -1,7 +1,11 @@
+# 1.0.1
+- [Fix]: could edit key in last object when `enableKeyEdit` was `false`.
+- [Added]: `enableValueEdit` that lets you stop editing a value.
+
 # 1.0.0
 ## Breaking changes
-- [onSaved] is replaced with [onChanged].
-- No [width] and [height] parameters.
+- `onSaved` is replaced with `onChanged`.
+- [Removed] `width` and `height` parameters.
 
 ## New updates
 - Supports text editor.
