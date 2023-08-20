@@ -31,6 +31,4 @@ JsonEditor(
 
 ## Additional information
 
-> You can raise an issue/feature request on github. <br>Please leave a like if you find this package useful.
-<br>
-> Upcoming feature => expand/collapse all.
+> You can raise an issue/feature request on github. <br>Please leave a like if you find this package useful. <br><br> Upcoming feature => expand/collapse all.
