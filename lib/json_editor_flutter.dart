@@ -63,6 +63,7 @@ class JsonEditor extends StatefulWidget {
     this.enableValueEdit = true,
     this.editors = const [Editors.tree, Editors.text],
     this.themeColor,
+    this.actions = const [],
   }) : assert(editors.length > 0, "editors list cannot be empty");
 
   /// JSON string to be edited.
@@ -89,6 +90,9 @@ class JsonEditor extends StatefulWidget {
   /// List of supported editors. First element will be used as default editor.
   final List<Editors> editors;
 
+  /// A list of Widgets to display in a row at the end of header.
+  final List<Widget> actions;
+
   @override
   State<JsonEditor> createState() => _JsonEditorState();
 }
@@ -99,6 +103,7 @@ class _JsonEditorState extends State<JsonEditor> {
   late final _themeColor = widget.themeColor ?? Theme.of(context).primaryColor;
   late Editors _editor = widget.editors.first;
   bool _onError = false;
+  bool? allExpanded;
   late final _controller = TextEditingController()
     ..text = _stringifyData(_data, 0, true);
 
@@ -106,7 +111,7 @@ class _JsonEditorState extends State<JsonEditor> {
     if (_timer?.isActive ?? false) _timer?.cancel();
 
     _timer = Timer(widget.duration, () {
-      widget.onChanged(_data);
+      widget.onChanged(jsonDecode(jsonEncode(_data)));
     });
   }
 
@@ -185,6 +190,9 @@ class _JsonEditorState extends State<JsonEditor> {
                       tooltip: 'Change editor',
                       padding: EdgeInsets.zero,
                       onSelected: (value) {
+                        if (value == Editors.text) {
+                          _controller.text = _stringifyData(_data, 0, true);
+                        }
                         setState(() {
                           _editor = value;
                         });
@@ -232,6 +240,31 @@ class _JsonEditorState extends State<JsonEditor> {
                           child: Icon(Icons.format_align_left, size: 20),
                         ),
                       ),
+                    ] else ...[
+                      const SizedBox(width: 20),
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            allExpanded = true;
+                          });
+                        },
+                        child: const Tooltip(
+                          message: 'Expand All',
+                          child: Icon(Icons.expand, size: 20),
+                        ),
+                      ),
+                      const SizedBox(width: 20),
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            allExpanded = false;
+                          });
+                        },
+                        child: const Tooltip(
+                          message: 'Collapse All',
+                          child: Icon(Icons.compress, size: 20),
+                        ),
+                      ),
                     ],
                     const SizedBox(width: 20),
                     InkWell(
@@ -241,6 +274,8 @@ class _JsonEditorState extends State<JsonEditor> {
                         child: Icon(Icons.copy, size: 20),
                       ),
                     ),
+                    if (widget.actions.isNotEmpty) const SizedBox(width: 20),
+                    ...widget.actions,
                   ],
                 ),
               ),
@@ -251,14 +286,14 @@ class _JsonEditorState extends State<JsonEditor> {
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: _Holder(
-                      key: const Key("object"),
+                      key: Key("object $allExpanded"),
                       data: _data,
                       keyName: "object",
                       paddingLeft: _space,
                       onChanged: callOnChanged,
                       parentObject: {"object": _data},
                       setState: setState,
-                      isExpanded: true,
+                      isExpanded: allExpanded ?? false,
                     ),
                   ),
                 ),
@@ -390,6 +425,7 @@ class _HolderState extends State<_Holder> {
           parentObject: widget.data,
           paddingLeft: widget.paddingLeft + _space,
           setState: setState,
+          isExpanded: widget.isExpanded,
         ));
       }
 
@@ -452,6 +488,7 @@ class _HolderState extends State<_Holder> {
           parentObject: widget.data,
           paddingLeft: widget.paddingLeft + _space,
           setState: setState,
+          isExpanded: widget.isExpanded,
         ));
       }
 
@@ -841,7 +878,7 @@ List<String> _getSpace(int count) {
   return [space, '$space  '];
 }
 
-String _stringifyData(Object data, int spacing, [bool isLast = false]) {
+String _stringifyData(data, int spacing, [bool isLast = false]) {
   String str = '';
   final spaceList = _getSpace(spacing);
   final objectSpace = spaceList[0];

@@ -1,3 +1,8 @@
+# 1.2.0
+- [Fix]: `onChanged` method provides a copy of data.
+- [Added]: `actions` paramater.
+- [Added]: Expand and Collapse All buttons.
+
 # 1.0.1
 - [Fix]: could edit key in last object when `enableKeyEdit` was `false`.
 - [Added]: `enableValueEdit` that lets you stop editing a value.
@@ -12,18 +17,18 @@
 - Allows key editing in tree editor.
 
 # 0.1.0
-- `json` now takes a `String`
-- [Added] undo button
+- `json` now takes a `String`.
+- [Added] undo button.
 
 # 0.0.4
-- [Fix] Bidirectional scrolling
-- [Change] Delete Icon on the left
+- [Fix] Bidirectional scrolling.
+- [Change] Delete Icon on the left.
 
 # 0.0.3
-- [Added] color `Color?` parameter for editor theme
+- [Added] color `Color?` parameter for editor theme.
 
 # 0.0.2
-- [Added] Expand all and collapse all button
+- [Added] Expand all and collapse all button.
 
 # 0.0.1
-- Initial development release
+- Initial development release.
