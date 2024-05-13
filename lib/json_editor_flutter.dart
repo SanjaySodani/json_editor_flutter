@@ -461,9 +461,14 @@ class _HolderState extends State<_Holder> {
                     style: _textStyle,
                   ),
                 ] else
-                  Text(
-                    "${widget.keyName}  {${widget.data.length}}",
-                    style: _textStyle,
+                  InkWell(
+                    hoverColor: Colors.transparent,
+                    splashColor: Colors.transparent,
+                    onTap: _toggleState,
+                    child: Text(
+                      "${widget.keyName}  {${widget.data.length}}",
+                      style: _textStyle,
+                    ),
                   ),
               ],
             ),
