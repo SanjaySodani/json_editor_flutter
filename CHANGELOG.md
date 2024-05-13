@@ -1,3 +1,6 @@
+# 1.2.1
+- [Added]: Tree view can be expanded/collapsed on key pressed.
+
 # 1.2.0
 - [Fix]: `onChanged` method provides a copy of data.
 - [Added]: `actions` paramater.
