@@ -11,7 +11,7 @@ const _space = 18.0;
 const _textStyle = TextStyle(fontSize: 16);
 const _options = Icon(Icons.more_horiz, size: 16);
 const _expandIconWidth = 10.0;
-const _rowPadding = 5.0;
+const _rowHeight = 30.0;
 const _popupMenuHeight = 30.0;
 const _popupMenuItemPadding = 20.0;
 const _textSpacer = SizedBox(width: 5);
@@ -34,6 +34,8 @@ bool _enableKeyEdit = true;
 bool _enableValueEdit = true;
 
 enum _OptionItems { map, list, string, bool, num, delete }
+
+enum _SearchActions { next, prev }
 
 /// Supported editors for JSON Editor.
 enum Editors { tree, text }
@@ -64,6 +66,7 @@ class JsonEditor extends StatefulWidget {
     this.editors = const [Editors.tree, Editors.text],
     this.themeColor,
     this.actions = const [],
+    this.enableHorizontalScroll = false,
   }) : assert(editors.length > 0, "editors list cannot be empty");
 
   /// JSON string to be edited.
@@ -93,12 +96,16 @@ class JsonEditor extends StatefulWidget {
   /// A list of Widgets to display in a row at the end of header.
   final List<Widget> actions;
 
+  /// Enables horizontal scroll for the tree view. Defaults to `false`.
+  final bool enableHorizontalScroll;
+
   @override
   State<JsonEditor> createState() => _JsonEditorState();
 }
 
 class _JsonEditorState extends State<JsonEditor> {
   Timer? _timer;
+  Timer? _searchTimer;
   late dynamic _data;
   late final _themeColor = widget.themeColor ?? Theme.of(context).primaryColor;
   late Editors _editor = widget.editors.first;
@@ -106,6 +113,11 @@ class _JsonEditorState extends State<JsonEditor> {
   bool? allExpanded;
   late final _controller = TextEditingController()
     ..text = _stringifyData(_data, 0, true);
+  late final _scrollController = ScrollController();
+  final _offsets = <int>[];
+  final _matchedKeys = <String>[];
+  int _row = 0;
+  int? _currentOffsetIndex;
 
   void callOnChanged() {
     if (_timer?.isActive ?? false) _timer?.cancel();
@@ -137,6 +149,96 @@ class _JsonEditorState extends State<JsonEditor> {
     await Clipboard.setData(
       ClipboardData(text: jsonEncode(_data)),
     );
+  }
+
+  void findMatchingKeys(data, String text) {
+    data as Map;
+    final keys = data.keys.toList();
+    keys.sort();
+    for (var key in keys) {
+      _row++;
+      if ("$key".toLowerCase().contains(text)) {
+        _offsets.add(_row + 1);
+        _matchedKeys.add(key.toString());
+      }
+      if (data[key] is Map) {
+        findMatchingKeys(data[key], text);
+      } else if (data[key] is List) {
+        for (var item in data[key]) {
+          if (item is Map) {
+            _row++;
+            findMatchingKeys(item, text);
+          }
+        }
+      }
+    }
+  }
+
+  void onSearch(String text) {
+    if (_searchTimer?.isActive ?? false) _searchTimer?.cancel();
+
+    _searchTimer = Timer(const Duration(milliseconds: 600), () async {
+      _offsets.clear();
+      _matchedKeys.clear();
+      _row = 0;
+      _currentOffsetIndex = null;
+      await expandCollapseAll(true);
+      if (text.isEmpty) return;
+      findMatchingKeys(_data, text.toLowerCase());
+      if (_offsets.isNotEmpty) {
+        // await expandCollapseAll(true);
+        _currentOffsetIndex = 0;
+        scrollTo(_offsets.first);
+      }
+    });
+  }
+
+  void scrollTo(int offset) {
+    _scrollController.animateTo(
+      (offset * _rowHeight) - 90,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void onSearchAction(_SearchActions action) {
+    if (_offsets.isEmpty) return;
+    if (action == _SearchActions.next) {
+      if (_currentOffsetIndex != null &&
+          _offsets.length - 1 > _currentOffsetIndex!) {
+        _currentOffsetIndex = _currentOffsetIndex! + 1;
+      } else {
+        _currentOffsetIndex = 0;
+      }
+    } else {
+      if (_currentOffsetIndex != null && _currentOffsetIndex! > 0) {
+        _currentOffsetIndex = _currentOffsetIndex! - 1;
+      } else {
+        _currentOffsetIndex = _offsets.length - 1;
+      }
+    }
+    scrollTo(_offsets[_currentOffsetIndex!]);
+  }
+
+  Widget wrapWithHorizontolScroll(Widget child) {
+    if (widget.enableHorizontalScroll) {
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: child,
+      );
+    }
+    return child;
+  }
+
+  Future<void> expandCollapseAll(bool value) {
+    setState(() {
+      allExpanded = !value;
+    });
+    return Future.delayed(const Duration(milliseconds: 100), () {
+      setState(() {
+        allExpanded = value;
+      });
+    });
   }
 
   @override
@@ -242,11 +344,11 @@ class _JsonEditorState extends State<JsonEditor> {
                       ),
                     ] else ...[
                       const SizedBox(width: 20),
+                      _SearchField(onSearch, onSearchAction),
+                      const SizedBox(width: 20),
                       InkWell(
                         onTap: () {
-                          setState(() {
-                            allExpanded = true;
-                          });
+                          expandCollapseAll(true);
                         },
                         child: const Tooltip(
                           message: 'Expand All',
@@ -256,9 +358,7 @@ class _JsonEditorState extends State<JsonEditor> {
                       const SizedBox(width: 20),
                       InkWell(
                         onTap: () {
-                          setState(() {
-                            allExpanded = false;
-                          });
+                          expandCollapseAll(false);
                         },
                         child: const Tooltip(
                           message: 'Collapse All',
@@ -283,9 +383,9 @@ class _JsonEditorState extends State<JsonEditor> {
             if (_editor == Editors.tree)
               Expanded(
                 child: SingleChildScrollView(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: _Holder(
+                  controller: _scrollController,
+                  child: wrapWithHorizontolScroll(
+                    _Holder(
                       key: Key("object $allExpanded"),
                       data: _data,
                       keyName: "object",
@@ -293,6 +393,7 @@ class _JsonEditorState extends State<JsonEditor> {
                       onChanged: callOnChanged,
                       parentObject: {"object": _data},
                       setState: setState,
+                      matchedKeys: _matchedKeys,
                       isExpanded: allExpanded ?? false,
                     ),
                   ),
@@ -333,6 +434,7 @@ class _Holder extends StatefulWidget {
     required this.onChanged,
     required this.parentObject,
     required this.setState,
+    required this.matchedKeys,
     this.isExpanded = false,
   });
 
@@ -343,6 +445,7 @@ class _Holder extends StatefulWidget {
   final dynamic parentObject;
   final StateSetter setState;
   final bool isExpanded;
+  final List<String> matchedKeys;
 
   @override
   State<_Holder> createState() => _HolderState();
@@ -409,6 +512,13 @@ class _HolderState extends State<_Holder> {
     widget.onChanged();
   }
 
+  Widget wrapWithColoredBox(Widget child, String key) {
+    if (widget.matchedKeys.contains(key)) {
+      return ColoredBox(color: Colors.amber, child: child);
+    }
+    return child;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.data is Map) {
@@ -425,6 +535,7 @@ class _HolderState extends State<_Holder> {
           parentObject: widget.data,
           paddingLeft: widget.paddingLeft + _space,
           setState: setState,
+          matchedKeys: widget.matchedKeys,
           isExpanded: widget.isExpanded,
         ));
       }
@@ -433,8 +544,8 @@ class _HolderState extends State<_Holder> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: _rowPadding),
+          SizedBox(
+            height: _rowHeight,
             child: Row(
               children: [
                 const SizedBox(width: _expandIconWidth),
@@ -454,6 +565,9 @@ class _HolderState extends State<_Holder> {
                     isKey: true,
                     onChanged: onKeyChanged,
                     setState: setState,
+                    isHighlighted: widget.matchedKeys.contains(
+                      "${widget.keyName}",
+                    ),
                   ),
                   _textSpacer,
                   Text(
@@ -465,9 +579,16 @@ class _HolderState extends State<_Holder> {
                     hoverColor: Colors.transparent,
                     splashColor: Colors.transparent,
                     onTap: _toggleState,
-                    child: Text(
-                      "${widget.keyName}  {${widget.data.length}}",
-                      style: _textStyle,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        wrapWithColoredBox(
+                          Text("${widget.keyName}", style: _textStyle),
+                          "${widget.keyName}",
+                        ),
+                        _textSpacer,
+                        Text("{${widget.data.length}}", style: _textStyle),
+                      ],
                     ),
                   ),
               ],
@@ -493,6 +614,7 @@ class _HolderState extends State<_Holder> {
           parentObject: widget.data,
           paddingLeft: widget.paddingLeft + _space,
           setState: setState,
+          matchedKeys: widget.matchedKeys,
           isExpanded: widget.isExpanded,
         ));
       }
@@ -501,8 +623,8 @@ class _HolderState extends State<_Holder> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: _rowPadding),
+          SizedBox(
+            height: _rowHeight,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -523,6 +645,9 @@ class _HolderState extends State<_Holder> {
                     isKey: true,
                     onChanged: onKeyChanged,
                     setState: setState,
+                    isHighlighted: widget.matchedKeys.contains(
+                      "${widget.keyName}",
+                    ),
                   ),
                   _textSpacer,
                   Text(
@@ -530,9 +655,21 @@ class _HolderState extends State<_Holder> {
                     style: _textStyle,
                   ),
                 ] else
-                  Text(
-                    "${widget.keyName}  [${widget.data.length}]",
-                    style: _textStyle,
+                  InkWell(
+                    hoverColor: Colors.transparent,
+                    splashColor: Colors.transparent,
+                    onTap: _toggleState,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        wrapWithColoredBox(
+                          Text("${widget.keyName}", style: _textStyle),
+                          "${widget.keyName}",
+                        ),
+                        _textSpacer,
+                        Text("[${widget.data.length}]", style: _textStyle),
+                      ],
+                    ),
                   ),
               ],
             ),
@@ -546,8 +683,8 @@ class _HolderState extends State<_Holder> {
         ],
       );
     } else {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: _rowPadding),
+      return SizedBox(
+        height: _rowHeight,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -566,10 +703,23 @@ class _HolderState extends State<_Holder> {
                     isKey: true,
                     onChanged: onKeyChanged,
                     setState: setState,
+                    isHighlighted: widget.matchedKeys.contains(
+                      "${widget.keyName}",
+                    ),
                   ),
                   const Text(' :', style: _textStyle),
                 ] else
-                  Text('${widget.keyName} :', style: _textStyle),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      wrapWithColoredBox(
+                        Text("${widget.keyName}", style: _textStyle),
+                        "${widget.keyName}",
+                      ),
+                      _textSpacer,
+                      const Text(" :", style: _textStyle),
+                    ],
+                  ),
                 _textSpacer,
                 if (_enableValueEdit) ...[
                   _ReplaceTextWithField(
@@ -599,12 +749,14 @@ class _ReplaceTextWithField extends StatefulWidget {
     required this.onChanged,
     required this.setState,
     this.isKey = false,
+    this.isHighlighted = false,
   });
 
   final dynamic initialValue;
   final bool isKey;
   final ValueChanged<Object> onChanged;
   final StateSetter setState;
+  final bool isHighlighted;
 
   @override
   State<_ReplaceTextWithField> createState() => _ReplaceTextWithFieldState();
@@ -631,6 +783,16 @@ class _ReplaceTextWithFieldState extends State<_ReplaceTextWithField> {
         _isFocused = false;
       });
     }
+  }
+
+  Widget wrapWithColoredBox(String keyName) {
+    if (widget.isHighlighted) {
+      return ColoredBox(
+        color: Colors.amber,
+        child: Text(keyName, style: _textStyle),
+      );
+    }
+    return Text(keyName, style: _textStyle);
   }
 
   @override
@@ -723,7 +885,7 @@ class _ReplaceTextWithFieldState extends State<_ReplaceTextWithField> {
           mouseCursor: MaterialStateMouseCursor.textable,
           child: widget.initialValue is String && _text.isEmpty
               ? const SizedBox(width: 200, height: 18)
-              : Text(_text, style: _textStyle),
+              : wrapWithColoredBox(_text),
         );
       }
     }
@@ -870,6 +1032,74 @@ class _PopupMenuWidgetState extends State<_PopupMenuWidget> {
   @override
   Widget build(BuildContext context) {
     return widget.child;
+  }
+}
+
+class _SearchField extends StatelessWidget {
+  final ValueChanged<String> onChanged;
+  final ValueChanged<_SearchActions> onAction;
+
+  const _SearchField(this.onChanged, this.onAction);
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.grey.shade50,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(width: 2),
+          const Icon(CupertinoIcons.search, size: 20),
+          const SizedBox(width: 5),
+          TextField(
+            onChanged: onChanged,
+            autocorrect: false,
+            cursorWidth: 1,
+            style: _textStyle,
+            cursorHeight: 12,
+            decoration: const InputDecoration(
+              hintText: "Search keys",
+              hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+              constraints: BoxConstraints(maxWidth: 150),
+              border: InputBorder.none,
+              fillColor: Colors.transparent,
+              filled: true,
+              isDense: true,
+              contentPadding: EdgeInsets.all(3),
+              focusedBorder: InputBorder.none,
+              hoverColor: Colors.transparent,
+            ),
+          ),
+          const SizedBox(width: 5),
+          InkWell(
+            onTap: () {
+              onAction(_SearchActions.next);
+            },
+            child: const Tooltip(
+              message: 'Next',
+              child: Icon(
+                CupertinoIcons.arrowtriangle_down_fill,
+                size: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 2),
+          InkWell(
+            onTap: () {
+              onAction(_SearchActions.prev);
+            },
+            child: const Tooltip(
+              message: 'Previous',
+              child: Icon(
+                CupertinoIcons.arrowtriangle_up_fill,
+                size: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 5),
+        ],
+      ),
+    );
   }
 }
 
