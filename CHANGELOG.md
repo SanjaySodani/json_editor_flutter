@@ -1,3 +1,6 @@
+# 1.3.1
+- [Removed]: Default sorting
+
 # 1.3.0
 ## Breaking changes
 - [Breaking]: Horizontal scroll depends on `enableHorizontalScroll` parameter, defaults to false.

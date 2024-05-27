@@ -23,7 +23,7 @@ When text editor is active, it will simply ignore [enableKeyEdit] and [enableMor
 
 [editors] is the supported list of editors. First element will be used as default editor. Defaults to `[Editors.tree, Editors.text]`.
 
-### Example
+## Example
 ```dart
 JsonEditor(
   onChanged: (value) {
@@ -42,17 +42,18 @@ JsonEditor(
 )
 ```
 
-### Enums
+## Enums
 Supported editors for JSON Editor.
 ```dart
 enum  Editors { tree, text }
 ```
 
-### Properties
-`json` -> String<br>
+## Properties
+
+**json** -> String<br>
 JSON object to be edited. Pass it as `jsonEncode(data)`. Must be a Map.
 
-`onChanged` -> ValueChanged\<Map><br>
+### onChanged -> ValueChanged\<Map><br>
 Debounce duration for [onChanged] function. 
 
 `duration` -> Duration<br>

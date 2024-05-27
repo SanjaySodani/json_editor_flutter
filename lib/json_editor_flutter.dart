@@ -186,7 +186,6 @@ class _JsonEditorState extends State<JsonEditor> {
   void findMatchingKeys(data, String text) {
     if (data is Map) {
       final keys = data.keys.toList();
-      keys.sort();
       for (var key in keys) {
         _row++;
         if ("$key".toLowerCase().contains(text)) {
@@ -570,7 +569,6 @@ class _HolderState extends State<_Holder> {
       final mapWidget = <Widget>[];
 
       final List keys = widget.data.keys.toList();
-      keys.sort();
       for (var key in keys) {
         mapWidget.add(_Holder(
           key: Key(key),
@@ -1168,7 +1166,6 @@ String _stringifyData(data, int spacing, [bool isLast = false]) {
     str += '$objectSpace{';
     str += '\n';
     final keys = data.keys.toList();
-    keys.sort();
     for (int i = 0; i < keys.length; i++) {
       str +=
           '$dataSpace"${keys[i]}": ${_stringifyData(data[keys[i]], spacing + 1, i == keys.length - 1)}';
