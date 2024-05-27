@@ -88,13 +88,13 @@ class JsonEditor extends StatefulWidget {
   /// JSON string to be edited.
   final String json;
 
-  /// Callback function that will be called with the new [Map] data.
-  final ValueChanged<Map> onChanged;
+  /// Callback function that will be called with the new [dynamic] data.
+  final ValueChanged<dynamic> onChanged;
 
   /// Debounce duration for [onChanged] function.
   final Duration duration;
 
-  /// Enables more options like adding or deleting data. Defaults to `false`.
+  /// Enables more options like adding or deleting data. Defaults to `true`.
   final bool enableMoreOptions;
 
   /// Enables editing of keys. Defaults to `true`.
