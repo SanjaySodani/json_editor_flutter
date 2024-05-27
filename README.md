@@ -45,13 +45,13 @@ JsonEditor(
 ## Make most of this package
 
 ### beforeScrollDuration
-*property*
-*type -> Duration*
+*property*<br>
+*type -> Duration*<br>
 The `Duration` between the search and the starting of scroll animation.
 
 All the objects are expanded in order to find the correct offset position of the searched key. `beforeScrollDuration` refers to the time given for rebuilding the UI to expand all objects. Once the rebuilding is completed in the given duration, the scroll animation will work properly. If the duration provided is short you will not see the scroll animation.
 
-Play around with this property to find your suitable duration. `beforeScrollDuration` is proportional to size of the JSON object.
+Play around with this property to find your suitable duration. `beforeScrollDuration` is proportional to the size of the JSON object.
 
 ## Enums
 Supported editors for JSON Editor.

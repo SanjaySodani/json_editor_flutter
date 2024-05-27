@@ -127,7 +127,7 @@ class JsonEditor extends StatefulWidget {
   /// duration provided is short you will not see the scroll animation.
   ///
   /// Play around with this property to find your suitable duration.
-  /// [beforeScrollDuration] is proportional to size of the JSON object.
+  /// [beforeScrollDuration] is proportional to the size of the JSON object.
   final Duration beforeScrollDuration;
 
   @override
