@@ -56,8 +56,8 @@ JSON object to be edited. Pass it as `jsonEncode(data)`. Must be a Map.
 ### onChanged -> ValueChanged\<Map><br>
 Debounce duration for [onChanged] function. 
 
-`duration` -> Duration<br>
-Debounce duration for `onChanged` function. Defaults to 500 milliseconds.
+duration
+: \<Duration> Debounce duration for `onChanged` function. Defaults to 500 milliseconds.
 
 `enableMoreOptions` -> bool<br>
 Enables more options like adding or deleting data. Defaults to `false`.
