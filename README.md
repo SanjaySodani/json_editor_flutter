@@ -49,40 +49,40 @@ enum  Editors { tree, text }
 ```
 
 ### Properties
-`json` -> String
+`json` -> String<br>
 JSON object to be edited. Pass it as `jsonEncode(data)`. Must be a Map.
 
-`onChanged` -> ValueChanged\<Map>
+`onChanged` -> ValueChanged\<Map><br>
 Debounce duration for [onChanged] function. 
 
-`duration` -> Duration
+`duration` -> Duration<br>
 Debounce duration for `onChanged` function. Defaults to 500 milliseconds.
 
-`enableMoreOptions` -> bool
+`enableMoreOptions` -> bool<br>
 Enables more options like adding or deleting data. Defaults to `false`.
 
-`enableKeyEdit` -> bool
+`enableKeyEdit` -> bool<br>
 Enables editing of keys. Defaults to `true`.
 
-`enableValueEdit` -> bool
+`enableValueEdit` -> bool<br>
 Enables editing of values. Defaults to `true`.
 
-`themeColor` -> Color?
+`themeColor` -> Color?<br>
 Theme color for the editor. Changes the border color and header color.
 
-`editors` -> List\<Editors>
+`editors` -> List\<Editors><br>
 List of supported editors. First element will be used as default editor.
 
-`actions` -> List\<Widget>
+`actions` -> List\<Widget><br>
 A list of Widgets to display in a row at the end of header.
 
-`enableHorizontalScroll` -> bool
+`enableHorizontalScroll` -> bool<br>
 Enables horizontal scroll for the tree view. Defaults to `false`.
 
-`searchDuration` -> Duration
+`searchDuration` -> Duration<br>
 Debounce duration for search function.
 
-`beforeScrollDuration` -> Duration
+`beforeScrollDuration` -> Duration<br>
 The `Duration` between the search and the starting of scroll animation.
 
 All the objects are expanded in order to find the correct offset position of the searched key. `beforeScrollDuration` refers to the time given for rebuilding the UI to expand all objects. Once the rebuilding is completed in the given duration, the scroll animation will work properly. If the duration provided is short you will not see the scroll animation.
