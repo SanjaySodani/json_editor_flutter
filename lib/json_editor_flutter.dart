@@ -40,6 +40,20 @@ enum _SearchActions { next, prev }
 /// Supported editors for JSON Editor.
 enum Editors { tree, text }
 
+/// JSON can be edited in two ways, UI editor or text editor. You can disable
+/// either of them.
+///
+/// When UI editor is active, you can disable adding/deleting keys by using
+/// [enableMoreOptions] and can disable key editing by using [enableKeyEdit].
+///
+/// When text editor is active, it will simply ignore [enableKeyEdit] and
+/// [enableMoreOptions].
+///
+/// [duration] is the debounce time for [onChanged] function. Defaults to
+/// 500 milliseconds.
+///
+/// [editors] is the supported list of editors. First element will be
+/// used as default editor. Defaults to `[Editors.tree, Editors.text]`.
 class JsonEditor extends StatefulWidget {
   /// JSON can be edited in two ways, UI editor or text editor. You can disable
   /// either of them.
@@ -67,6 +81,8 @@ class JsonEditor extends StatefulWidget {
     this.themeColor,
     this.actions = const [],
     this.enableHorizontalScroll = false,
+    this.searchDuration = const Duration(milliseconds: 600),
+    this.beforeScrollDuration = const Duration(milliseconds: 300),
   }) : assert(editors.length > 0, "editors list cannot be empty");
 
   /// JSON string to be edited.
@@ -99,6 +115,21 @@ class JsonEditor extends StatefulWidget {
   /// Enables horizontal scroll for the tree view. Defaults to `false`.
   final bool enableHorizontalScroll;
 
+  /// Debounce duration for search function.
+  final Duration searchDuration;
+
+  /// The [Duration] between the search and the starting of scroll animation.
+  ///
+  /// All the objects are expanded in order to find the correct offset position
+  /// of the searched key. [beforeScrollDuration] refers to the time given for
+  /// rebuilding the UI to expand all objects. Once the rebuilding is completed
+  /// in the given duration, the scroll animation will work properly. If the
+  /// duration provided is short you will not see the scroll animation.
+  ///
+  /// Play around with this property to find your suitable duration.
+  /// [beforeScrollDuration] is proportional to size of the JSON object.
+  final Duration beforeScrollDuration;
+
   @override
   State<JsonEditor> createState() => _JsonEditorState();
 }
@@ -118,6 +149,7 @@ class _JsonEditorState extends State<JsonEditor> {
   final _matchedKeys = <String>[];
   int _row = 0;
   int? _currentOffsetIndex;
+  int? _results;
 
   void callOnChanged() {
     if (_timer?.isActive ?? false) _timer?.cancel();
@@ -152,23 +184,28 @@ class _JsonEditorState extends State<JsonEditor> {
   }
 
   void findMatchingKeys(data, String text) {
-    data as Map;
-    final keys = data.keys.toList();
-    keys.sort();
-    for (var key in keys) {
-      _row++;
-      if ("$key".toLowerCase().contains(text)) {
-        _offsets.add(_row + 1);
-        _matchedKeys.add(key.toString());
+    if (data is Map) {
+      final keys = data.keys.toList();
+      keys.sort();
+      for (var key in keys) {
+        _row++;
+        if ("$key".toLowerCase().contains(text)) {
+          _offsets.add(_row + 1);
+          _matchedKeys.add(key.toString());
+        }
+        if (data[key] is Map) {
+          findMatchingKeys(data[key], text);
+        } else if (data[key] is List) {
+          findMatchingKeys(data[key], text);
+        }
       }
-      if (data[key] is Map) {
-        findMatchingKeys(data[key], text);
-      } else if (data[key] is List) {
-        for (var item in data[key]) {
-          if (item is Map) {
-            _row++;
-            findMatchingKeys(item, text);
-          }
+    } else if (data is List) {
+      for (var item in data) {
+        _row++;
+        if (item is Map) {
+          findMatchingKeys(item, text);
+        } else if (item is List) {
+          findMatchingKeys(item, text);
         }
       }
     }
@@ -177,18 +214,27 @@ class _JsonEditorState extends State<JsonEditor> {
   void onSearch(String text) {
     if (_searchTimer?.isActive ?? false) _searchTimer?.cancel();
 
-    _searchTimer = Timer(const Duration(milliseconds: 600), () async {
+    _searchTimer = Timer(widget.searchDuration, () async {
       _offsets.clear();
       _matchedKeys.clear();
       _row = 0;
       _currentOffsetIndex = null;
-      await expandCollapseAll(true);
-      if (text.isEmpty) return;
-      findMatchingKeys(_data, text.toLowerCase());
-      if (_offsets.isNotEmpty) {
-        // await expandCollapseAll(true);
-        _currentOffsetIndex = 0;
-        scrollTo(_offsets.first);
+      if (text.isEmpty) {
+        setState(() {
+          _results = null;
+        });
+      } else {
+        findMatchingKeys(_data, text.toLowerCase());
+        _results = _offsets.length;
+        if (_offsets.isNotEmpty) {
+          expandCollapseAll(true);
+          Future.delayed(widget.beforeScrollDuration, () {
+            _currentOffsetIndex = 0;
+            scrollTo(_offsets.first);
+          });
+        } else {
+          setState(() {});
+        }
       }
     });
   }
@@ -230,14 +276,9 @@ class _JsonEditorState extends State<JsonEditor> {
     return child;
   }
 
-  Future<void> expandCollapseAll(bool value) {
+  void expandCollapseAll(bool value) {
     setState(() {
-      allExpanded = !value;
-    });
-    return Future.delayed(const Duration(milliseconds: 100), () {
-      setState(() {
-        allExpanded = value;
-      });
+      allExpanded = value;
     });
   }
 
@@ -285,8 +326,6 @@ class _JsonEditorState extends State<JsonEditor> {
                 ),
                 child: Row(
                   children: [
-                    const Text("Json Editor", style: _textStyle),
-                    const Spacer(),
                     PopupMenuButton<Editors>(
                       initialValue: _editor,
                       tooltip: 'Change editor',
@@ -331,6 +370,7 @@ class _JsonEditorState extends State<JsonEditor> {
                         ],
                       ),
                     ),
+                    const Spacer(),
                     if (_editor == Editors.text) ...[
                       const SizedBox(width: 20),
                       InkWell(
@@ -344,6 +384,10 @@ class _JsonEditorState extends State<JsonEditor> {
                       ),
                     ] else ...[
                       const SizedBox(width: 20),
+                      if (_results != null) ...[
+                        Text("$_results results"),
+                        const SizedBox(width: 5),
+                      ],
                       _SearchField(onSearch, onSearchAction),
                       const SizedBox(width: 20),
                       InkWell(
@@ -384,9 +428,10 @@ class _JsonEditorState extends State<JsonEditor> {
               Expanded(
                 child: SingleChildScrollView(
                   controller: _scrollController,
+                  physics: const ClampingScrollPhysics(),
                   child: wrapWithHorizontolScroll(
                     _Holder(
-                      key: Key("object $allExpanded"),
+                      key: UniqueKey(),
                       data: _data,
                       keyName: "object",
                       paddingLeft: _space,
@@ -1060,7 +1105,7 @@ class _SearchField extends StatelessWidget {
             decoration: const InputDecoration(
               hintText: "Search keys",
               hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
-              constraints: BoxConstraints(maxWidth: 150),
+              constraints: BoxConstraints(maxWidth: 130),
               border: InputBorder.none,
               fillColor: Colors.transparent,
               filled: true,

@@ -1,6 +1,6 @@
 Edit your JSON object with the help of this package. Create and delete objects using this user friendly widget.
 
-## Features
+## Screenshot
 
 ![JSON Editor](https://raw.githubusercontent.com/SanjaySodani/media/main/jsoneditor.png)
 
@@ -16,7 +16,7 @@ JsonEditor(
   onChanged: (value) {
     // Do something
   },
-  json: '''{
+  json: jsonEncode({
     "name": "John Doe",
     "age": 24,
     "hobbies": ["Reading", "Coding"],
@@ -25,7 +25,7 @@ JsonEditor(
       "number": 1234567890,
       "city": "New York"
     }
-  }''',
+  }),
 )
 ```
 

@@ -1,3 +1,11 @@
+# 1.3.0
+## Breaking changes
+- [Breaking]: Horizontal scroll depends on `enableHorizontalScroll` parameter, defaults to false.
+
+## New updates
+- Added Search Functionality
+- [Added]: `searchDuration` and `beforeScrollDuration` to make search functionality works best for you.
+
 # 1.2.1
 - [Added]: Tree view can be expanded/collapsed on key pressed.
 
