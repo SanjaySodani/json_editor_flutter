@@ -145,11 +145,13 @@ class _JsonEditorState extends State<JsonEditor> {
   late final _controller = TextEditingController()
     ..text = _stringifyData(_data, 0, true);
   late final _scrollController = ScrollController();
-  final _offsets = <int>[];
-  final _matchedKeys = <String>[];
-  int _row = 0;
+  final _matchedKeys = <String, int>{};
+  final _matchedKeysLocation = <String, int>{};
   int? _currentOffsetIndex;
   int? _results;
+  late final _expandedObjects = <String, bool>{
+    ["object"].toString(): true,
+  };
 
   void callOnChanged() {
     if (_timer?.isActive ?? false) _timer?.cancel();
@@ -183,28 +185,38 @@ class _JsonEditorState extends State<JsonEditor> {
     );
   }
 
-  void findMatchingKeys(data, String text) {
+  void updateParentObjects(List newExpandList) {
+    for (int i = newExpandList.length - 1; i >= 0; i--) {
+      _expandedObjects[newExpandList.toString()] = true;
+      newExpandList.removeLast();
+    }
+  }
+
+  void findMatchingKeys(data, String text, List nestedParents) {
     if (data is Map) {
       final keys = data.keys.toList();
+      int serialNo = 0;
       for (var key in keys) {
-        _row++;
-        if ("$key".toLowerCase().contains(text)) {
-          _offsets.add(_row + 1);
-          _matchedKeys.add(key.toString());
+        serialNo++;
+        final keyName = key.toString();
+        if (keyName.toLowerCase().contains(text)) {
+          _matchedKeys[keyName] = (_matchedKeys[keyName] ?? 0) + 1;
+          updateParentObjects([...nestedParents]);
+          _matchedKeysLocation[nestedParents.toString()] = serialNo;
         }
         if (data[key] is Map) {
-          findMatchingKeys(data[key], text);
+          findMatchingKeys(data[key], text, [...nestedParents, key]);
         } else if (data[key] is List) {
-          findMatchingKeys(data[key], text);
+          findMatchingKeys(data[key], text, [...nestedParents, key]);
         }
       }
     } else if (data is List) {
-      for (var item in data) {
-        _row++;
+      for (int i = 0; i < data.length; i++) {
+        final item = data[i];
         if (item is Map) {
-          findMatchingKeys(item, text);
+          findMatchingKeys(item, text, [...nestedParents, i]);
         } else if (item is List) {
-          findMatchingKeys(item, text);
+          findMatchingKeys(item, text, [...nestedParents, i]);
         }
       }
     }
@@ -214,43 +226,48 @@ class _JsonEditorState extends State<JsonEditor> {
     if (_searchTimer?.isActive ?? false) _searchTimer?.cancel();
 
     _searchTimer = Timer(widget.searchDuration, () async {
-      _offsets.clear();
       _matchedKeys.clear();
-      _row = 0;
+      _matchedKeysLocation.clear();
       _currentOffsetIndex = null;
       if (text.isEmpty) {
         setState(() {
           _results = null;
         });
       } else {
-        findMatchingKeys(_data, text.toLowerCase());
-        _results = _offsets.length;
-        if (_offsets.isNotEmpty) {
-          expandCollapseAll(true);
+        findMatchingKeys(_data, text.toLowerCase(), ["object"]);
+        _results = 0;
+        _matchedKeys.forEach((_, value) {
+          _results = _results! + value;
+        });
+        setState(() {});
+        if (_matchedKeys.isNotEmpty) {
           Future.delayed(widget.beforeScrollDuration, () {
             _currentOffsetIndex = 0;
-            scrollTo(_offsets.first);
+            scrollTo(0);
           });
-        } else {
-          setState(() {});
         }
       }
     });
   }
 
-  void scrollTo(int offset) {
+  int getOffset(int index) {
+    // TODO: yet to implement
+    return 30;
+  }
+
+  void scrollTo(int index) {
     _scrollController.animateTo(
-      (offset * _rowHeight) - 90,
+      (getOffset(index) * _rowHeight) - 90,
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
     );
   }
 
   void onSearchAction(_SearchActions action) {
-    if (_offsets.isEmpty) return;
+    if (_matchedKeys.isEmpty) return;
     if (action == _SearchActions.next) {
       if (_currentOffsetIndex != null &&
-          _offsets.length - 1 > _currentOffsetIndex!) {
+          _matchedKeys.length - 1 > _currentOffsetIndex!) {
         _currentOffsetIndex = _currentOffsetIndex! + 1;
       } else {
         _currentOffsetIndex = 0;
@@ -259,10 +276,30 @@ class _JsonEditorState extends State<JsonEditor> {
       if (_currentOffsetIndex != null && _currentOffsetIndex! > 0) {
         _currentOffsetIndex = _currentOffsetIndex! - 1;
       } else {
-        _currentOffsetIndex = _offsets.length - 1;
+        _currentOffsetIndex = _matchedKeys.length - 1;
       }
     }
-    scrollTo(_offsets[_currentOffsetIndex!]);
+    scrollTo(_currentOffsetIndex!);
+  }
+
+  void expandAllObjects(data, List expandedList) {
+    if (data is Map) {
+      for (var entry in data.entries) {
+        if (entry.value is Map || entry.value is List) {
+          final newList = [...expandedList, entry.key];
+          _expandedObjects[newList.toString()] = true;
+          expandAllObjects(entry.value, newList);
+        }
+      }
+    } else if (data is List) {
+      for (int i = 0; i < data.length; i++) {
+        if (data[i] is Map || data[i] is List) {
+          final newList = [...expandedList, i];
+          _expandedObjects[newList.toString()] = true;
+          expandAllObjects(data[i], newList);
+        }
+      }
+    }
   }
 
   Widget wrapWithHorizontolScroll(Widget child) {
@@ -273,12 +310,6 @@ class _JsonEditorState extends State<JsonEditor> {
       );
     }
     return child;
-  }
-
-  void expandCollapseAll(bool value) {
-    setState(() {
-      allExpanded = value;
-    });
   }
 
   @override
@@ -391,7 +422,9 @@ class _JsonEditorState extends State<JsonEditor> {
                       const SizedBox(width: 20),
                       InkWell(
                         onTap: () {
-                          expandCollapseAll(true);
+                          _expandedObjects[["object"].toString()] = true;
+                          expandAllObjects(_data, ["object"]);
+                          setState(() {});
                         },
                         child: const Tooltip(
                           message: 'Expand All',
@@ -401,7 +434,8 @@ class _JsonEditorState extends State<JsonEditor> {
                       const SizedBox(width: 20),
                       InkWell(
                         onTap: () {
-                          expandCollapseAll(false);
+                          _expandedObjects.clear();
+                          setState(() {});
                         },
                         child: const Tooltip(
                           message: 'Collapse All',
@@ -419,6 +453,13 @@ class _JsonEditorState extends State<JsonEditor> {
                     ),
                     if (widget.actions.isNotEmpty) const SizedBox(width: 20),
                     ...widget.actions,
+                    // TODO: remove this faltu widget
+                    TextButton(
+                      onPressed: () {
+                        print(_expandedObjects);
+                      },
+                      child: const Text("Print"),
+                    ),
                   ],
                 ),
               ),
@@ -438,7 +479,8 @@ class _JsonEditorState extends State<JsonEditor> {
                       parentObject: {"object": _data},
                       setState: setState,
                       matchedKeys: _matchedKeys,
-                      isExpanded: allExpanded ?? false,
+                      allParents: const ["object"],
+                      expandedObjects: _expandedObjects,
                     ),
                   ),
                 ),
@@ -479,7 +521,8 @@ class _Holder extends StatefulWidget {
     required this.parentObject,
     required this.setState,
     required this.matchedKeys,
-    this.isExpanded = false,
+    required this.allParents,
+    required this.expandedObjects,
   });
 
   final dynamic keyName;
@@ -488,17 +531,24 @@ class _Holder extends StatefulWidget {
   final VoidCallback onChanged;
   final dynamic parentObject;
   final StateSetter setState;
-  final bool isExpanded;
-  final List<String> matchedKeys;
+  final Map<String, int> matchedKeys;
+  final List allParents;
+  final Map<String, bool> expandedObjects;
 
   @override
   State<_Holder> createState() => _HolderState();
 }
 
 class _HolderState extends State<_Holder> {
-  late bool isExpanded = widget.isExpanded;
+  late bool isExpanded =
+      widget.expandedObjects[widget.allParents.toString()] == true;
 
   void _toggleState() {
+    if (!isExpanded) {
+      widget.expandedObjects[widget.allParents.toString()] = true;
+    } else {
+      widget.expandedObjects.remove(widget.allParents.toString());
+    }
     setState(() {
       isExpanded = !isExpanded;
     });
@@ -557,7 +607,7 @@ class _HolderState extends State<_Holder> {
   }
 
   Widget wrapWithColoredBox(Widget child, String key) {
-    if (widget.matchedKeys.contains(key)) {
+    if (widget.matchedKeys[key] != null) {
       return ColoredBox(color: Colors.amber, child: child);
     }
     return child;
@@ -579,7 +629,8 @@ class _HolderState extends State<_Holder> {
           paddingLeft: widget.paddingLeft + _space,
           setState: setState,
           matchedKeys: widget.matchedKeys,
-          isExpanded: widget.isExpanded,
+          allParents: [...widget.allParents, key],
+          expandedObjects: widget.expandedObjects,
         ));
       }
 
@@ -608,9 +659,8 @@ class _HolderState extends State<_Holder> {
                     isKey: true,
                     onChanged: onKeyChanged,
                     setState: setState,
-                    isHighlighted: widget.matchedKeys.contains(
-                      "${widget.keyName}",
-                    ),
+                    isHighlighted:
+                        widget.matchedKeys["${widget.keyName}"] != null,
                   ),
                   _textSpacer,
                   Text(
@@ -658,7 +708,8 @@ class _HolderState extends State<_Holder> {
           paddingLeft: widget.paddingLeft + _space,
           setState: setState,
           matchedKeys: widget.matchedKeys,
-          isExpanded: widget.isExpanded,
+          allParents: [...widget.allParents, i],
+          expandedObjects: widget.expandedObjects,
         ));
       }
 
@@ -688,9 +739,8 @@ class _HolderState extends State<_Holder> {
                     isKey: true,
                     onChanged: onKeyChanged,
                     setState: setState,
-                    isHighlighted: widget.matchedKeys.contains(
-                      "${widget.keyName}",
-                    ),
+                    isHighlighted:
+                        widget.matchedKeys["${widget.keyName}"] != null,
                   ),
                   _textSpacer,
                   Text(
@@ -746,9 +796,8 @@ class _HolderState extends State<_Holder> {
                     isKey: true,
                     onChanged: onKeyChanged,
                     setState: setState,
-                    isHighlighted: widget.matchedKeys.contains(
-                      "${widget.keyName}",
-                    ),
+                    isHighlighted:
+                        widget.matchedKeys["${widget.keyName}"] != null,
                   ),
                   const Text(' :', style: _textStyle),
                 ] else
