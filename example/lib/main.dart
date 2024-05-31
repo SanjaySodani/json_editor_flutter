@@ -27,8 +27,7 @@ class JsonEditorExample extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: JsonEditor(
           onChanged: (value) {
-            // Do something with the value
-            // Don't call setState()
+            // Do something
           },
           json: '''{
             "name": "John Doe",

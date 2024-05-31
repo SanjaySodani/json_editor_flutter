@@ -82,7 +82,6 @@ class JsonEditor extends StatefulWidget {
     this.actions = const [],
     this.enableHorizontalScroll = false,
     this.searchDuration = const Duration(milliseconds: 600),
-    this.beforeScrollDuration = const Duration(milliseconds: 300),
   }) : assert(editors.length > 0, "editors list cannot be empty");
 
   /// JSON string to be edited.
@@ -118,18 +117,6 @@ class JsonEditor extends StatefulWidget {
   /// Debounce duration for search function.
   final Duration searchDuration;
 
-  /// The [Duration] between the search and the starting of scroll animation.
-  ///
-  /// All the objects are expanded in order to find the correct offset position
-  /// of the searched key. [beforeScrollDuration] refers to the time given for
-  /// rebuilding the UI to expand all objects. Once the rebuilding is completed
-  /// in the given duration, the scroll animation will work properly. If the
-  /// duration provided is short you will not see the scroll animation.
-  ///
-  /// Play around with this property to find your suitable duration.
-  /// [beforeScrollDuration] is proportional to the size of the JSON object.
-  final Duration beforeScrollDuration;
-
   @override
   State<JsonEditor> createState() => _JsonEditorState();
 }
@@ -145,9 +132,9 @@ class _JsonEditorState extends State<JsonEditor> {
   late final _controller = TextEditingController()
     ..text = _stringifyData(_data, 0, true);
   late final _scrollController = ScrollController();
-  final _matchedKeys = <String, int>{};
-  final _matchedKeysLocation = <String, int>{};
-  int? _currentOffsetIndex;
+  final _matchedKeys = <String, bool>{};
+  final _matchedKeysLocation = <List>[];
+  int? _focusedKey;
   int? _results;
   late final _expandedObjects = <String, bool>{
     ["object"].toString(): true,
@@ -185,24 +172,27 @@ class _JsonEditorState extends State<JsonEditor> {
     );
   }
 
-  void updateParentObjects(List newExpandList) {
+  bool updateParentObjects(List newExpandList) {
+    bool needsRebuilding = false;
     for (int i = newExpandList.length - 1; i >= 0; i--) {
-      _expandedObjects[newExpandList.toString()] = true;
+      if (_expandedObjects[newExpandList.toString()] == null) {
+        _expandedObjects[newExpandList.toString()] = true;
+        needsRebuilding = true;
+      }
       newExpandList.removeLast();
     }
+    return needsRebuilding;
   }
 
   void findMatchingKeys(data, String text, List nestedParents) {
     if (data is Map) {
       final keys = data.keys.toList();
-      int serialNo = 0;
       for (var key in keys) {
-        serialNo++;
         final keyName = key.toString();
         if (keyName.toLowerCase().contains(text)) {
-          _matchedKeys[keyName] = (_matchedKeys[keyName] ?? 0) + 1;
-          updateParentObjects([...nestedParents]);
-          _matchedKeysLocation[nestedParents.toString()] = serialNo;
+          _results = _results! + 1;
+          _matchedKeys[keyName] = true;
+          _matchedKeysLocation.add([...nestedParents, key]);
         }
         if (data[key] is Map) {
           findMatchingKeys(data[key], text, [...nestedParents, key]);
@@ -228,21 +218,18 @@ class _JsonEditorState extends State<JsonEditor> {
     _searchTimer = Timer(widget.searchDuration, () async {
       _matchedKeys.clear();
       _matchedKeysLocation.clear();
-      _currentOffsetIndex = null;
+      _focusedKey = null;
       if (text.isEmpty) {
         setState(() {
           _results = null;
         });
       } else {
-        findMatchingKeys(_data, text.toLowerCase(), ["object"]);
         _results = 0;
-        _matchedKeys.forEach((_, value) {
-          _results = _results! + value;
-        });
+        findMatchingKeys(_data, text.toLowerCase(), ["object"]);
         setState(() {});
         if (_matchedKeys.isNotEmpty) {
-          Future.delayed(widget.beforeScrollDuration, () {
-            _currentOffsetIndex = 0;
+          Future.delayed(const Duration(milliseconds: 100), () {
+            _focusedKey = 0;
             scrollTo(0);
           });
         }
@@ -250,14 +237,50 @@ class _JsonEditorState extends State<JsonEditor> {
     });
   }
 
-  int getOffset(int index) {
-    // TODO: yet to implement
-    return 30;
+  int getOffset(List toFind) {
+    int offset = 0;
+    bool keyFound = false;
+
+    void calculateOffset(data, List parents, List toFind) {
+      if (keyFound) return;
+      if (data is Map) {
+        for (var entry in data.entries) {
+          final newList = [...parents, entry.key];
+          if (entry.key == toFind.last &&
+              newList.toString() == toFind.toString()) {
+            keyFound = true;
+          }
+          if (entry.value is Map || entry.value is List) {
+            if (_expandedObjects[newList.toString()] == true && !keyFound) {
+              calculateOffset(entry.value, newList, toFind);
+            }
+          }
+        }
+      } else if (data is List) {
+        for (int i = 0; i < data.length; i++) {
+          if (data[i] is Map || data[i] is List) {
+            final newList = [...parents, i];
+            if (_expandedObjects[newList.toString()] == true && !keyFound) {
+              calculateOffset(data[i], newList, toFind);
+            }
+          }
+        }
+      }
+    }
+
+    calculateOffset(_data, ["object"], toFind);
+    print("found offset $offset");
+    return offset;
   }
 
   void scrollTo(int index) {
+    final toFind = [..._matchedKeysLocation[index]];
+    final needsRebuilding = updateParentObjects(
+      [..._matchedKeysLocation[index]]..removeLast(),
+    );
+    if (needsRebuilding) setState(() {});
     _scrollController.animateTo(
-      (getOffset(index) * _rowHeight) - 90,
+      (getOffset(toFind) * _rowHeight) - 90,
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
     );
@@ -266,20 +289,20 @@ class _JsonEditorState extends State<JsonEditor> {
   void onSearchAction(_SearchActions action) {
     if (_matchedKeys.isEmpty) return;
     if (action == _SearchActions.next) {
-      if (_currentOffsetIndex != null &&
-          _matchedKeys.length - 1 > _currentOffsetIndex!) {
-        _currentOffsetIndex = _currentOffsetIndex! + 1;
+      if (_focusedKey != null &&
+          _matchedKeysLocation.length - 1 > _focusedKey!) {
+        _focusedKey = _focusedKey! + 1;
       } else {
-        _currentOffsetIndex = 0;
+        _focusedKey = 0;
       }
     } else {
-      if (_currentOffsetIndex != null && _currentOffsetIndex! > 0) {
-        _currentOffsetIndex = _currentOffsetIndex! - 1;
+      if (_focusedKey != null && _focusedKey! > 0) {
+        _focusedKey = _focusedKey! - 1;
       } else {
-        _currentOffsetIndex = _matchedKeys.length - 1;
+        _focusedKey = _matchedKeysLocation.length - 1;
       }
     }
-    scrollTo(_currentOffsetIndex!);
+    scrollTo(_focusedKey!);
   }
 
   void expandAllObjects(data, List expandedList) {
@@ -481,6 +504,9 @@ class _JsonEditorState extends State<JsonEditor> {
                       matchedKeys: _matchedKeys,
                       allParents: const ["object"],
                       expandedObjects: _expandedObjects,
+                      focusedKey: _focusedKey == null
+                          ? null
+                          : _matchedKeysLocation[_focusedKey!].toString(),
                     ),
                   ),
                 ),
@@ -523,6 +549,7 @@ class _Holder extends StatefulWidget {
     required this.matchedKeys,
     required this.allParents,
     required this.expandedObjects,
+    this.focusedKey,
   });
 
   final dynamic keyName;
@@ -531,9 +558,10 @@ class _Holder extends StatefulWidget {
   final VoidCallback onChanged;
   final dynamic parentObject;
   final StateSetter setState;
-  final Map<String, int> matchedKeys;
+  final Map<String, bool> matchedKeys;
   final List allParents;
   final Map<String, bool> expandedObjects;
+  final String? focusedKey;
 
   @override
   State<_Holder> createState() => _HolderState();
@@ -607,8 +635,8 @@ class _HolderState extends State<_Holder> {
   }
 
   Widget wrapWithColoredBox(Widget child, String key) {
-    if (widget.matchedKeys[key] != null) {
-      return ColoredBox(color: Colors.amber, child: child);
+    if (widget.matchedKeys[key] == true) {
+      return ColoredBox(color: Colors.yellow, child: child);
     }
     return child;
   }
@@ -660,7 +688,7 @@ class _HolderState extends State<_Holder> {
                     onChanged: onKeyChanged,
                     setState: setState,
                     isHighlighted:
-                        widget.matchedKeys["${widget.keyName}"] != null,
+                        widget.matchedKeys["${widget.keyName}"] == true,
                   ),
                   _textSpacer,
                   Text(
@@ -740,7 +768,7 @@ class _HolderState extends State<_Holder> {
                     onChanged: onKeyChanged,
                     setState: setState,
                     isHighlighted:
-                        widget.matchedKeys["${widget.keyName}"] != null,
+                        widget.matchedKeys["${widget.keyName}"] == true,
                   ),
                   _textSpacer,
                   Text(
@@ -797,7 +825,7 @@ class _HolderState extends State<_Holder> {
                     onChanged: onKeyChanged,
                     setState: setState,
                     isHighlighted:
-                        widget.matchedKeys["${widget.keyName}"] != null,
+                        widget.matchedKeys["${widget.keyName}"] == true,
                   ),
                   const Text(' :', style: _textStyle),
                 ] else
