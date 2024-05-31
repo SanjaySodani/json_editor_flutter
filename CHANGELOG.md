@@ -1,3 +1,7 @@
+# 1.4.0
+- [Optimization]: **Search functionality**, only expands the required objects
+- [Removed]: `beforeScrollDuration` parameter
+
 # 1.3.1
 - [Removed]: Default sorting
 

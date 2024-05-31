@@ -501,9 +501,6 @@ class _JsonEditorState extends State<JsonEditor> {
                       matchedKeys: _matchedKeys,
                       allParents: const ["object"],
                       expandedObjects: _expandedObjects,
-                      focusedKey: _focusedKey == null
-                          ? null
-                          : _matchedKeysLocation[_focusedKey!].toString(),
                     ),
                   ),
                 ),
@@ -546,7 +543,6 @@ class _Holder extends StatefulWidget {
     required this.matchedKeys,
     required this.allParents,
     required this.expandedObjects,
-    this.focusedKey,
   });
 
   final dynamic keyName;
@@ -558,7 +554,6 @@ class _Holder extends StatefulWidget {
   final Map<String, bool> matchedKeys;
   final List allParents;
   final Map<String, bool> expandedObjects;
-  final String? focusedKey;
 
   @override
   State<_Holder> createState() => _HolderState();

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:json_editor_flutter/json_editor_flutter.dart';
 
@@ -29,7 +31,7 @@ class JsonEditorExample extends StatelessWidget {
           onChanged: (value) {
             // Do something
           },
-          json: '''{
+          json: jsonEncode({
             "name": "John Doe",
             "age": 24,
             "hobbies": ["Reading", "Coding"],
@@ -38,7 +40,7 @@ class JsonEditorExample extends StatelessWidget {
               "number": 1234567890,
               "city": "New York"
             }
-          }''',
+          }),
         ),
       ),
     );

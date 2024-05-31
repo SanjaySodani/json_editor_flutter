@@ -42,17 +42,6 @@ JsonEditor(
 )
 ```
 
-## Make most of this package
-
-### beforeScrollDuration
-*property*<br>
-*type -> Duration*<br>
-The `Duration` between the search and the starting of scroll animation.
-
-All the objects are expanded in order to find the correct offset position of the searched key. `beforeScrollDuration` refers to the time given for rebuilding the UI to expand all objects. Once the rebuilding is completed in the given duration, the scroll animation will work properly. If the duration provided is short you will not see the scroll animation.
-
-Play around with this property to find your suitable duration. `beforeScrollDuration` is proportional to the size of the JSON object.
-
 ## Enums
 Supported editors for JSON Editor.
 ```dart
@@ -74,7 +63,6 @@ enum  Editors { tree, text }
 | actions                | List\<Widget>| []            | A list of Widgets to display in a row at the end of header
 | enableHorizontalScroll | bool         | false         | Enables horizontal scroll for the tree view
 | searchDuration         | Duration     | 600 ms        | Debounce duration for search function
-| beforeScrollDuration   | Duration     | 300 ms        | The duration between the search and the starting of scroll animation
 
 
 ## Additional information
