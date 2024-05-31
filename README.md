@@ -4,6 +4,8 @@ Edit your JSON object with this package. Create, edit and delete objects using t
 
 See the sample below for an example.
 
+## [Live Demo](https://json-editor-flutter.netlify.app/)
+
 ## Screenshot
 ![JSON Editor](https://raw.githubusercontent.com/SanjaySodani/media/main/jsoneditor.png)
 
