@@ -228,27 +228,28 @@ class _JsonEditorState extends State<JsonEditor> {
         findMatchingKeys(_data, text.toLowerCase(), ["object"]);
         setState(() {});
         if (_matchedKeys.isNotEmpty) {
-          Future.delayed(const Duration(milliseconds: 100), () {
-            _focusedKey = 0;
-            scrollTo(0);
-          });
+          _focusedKey = 0;
+          scrollTo(0);
         }
       }
     });
   }
 
   int getOffset(List toFind) {
-    int offset = 0;
+    int offset = 1;
     bool keyFound = false;
 
     void calculateOffset(data, List parents, List toFind) {
       if (keyFound) return;
       if (data is Map) {
         for (var entry in data.entries) {
+          if (keyFound) return;
+          offset++;
           final newList = [...parents, entry.key];
           if (entry.key == toFind.last &&
               newList.toString() == toFind.toString()) {
             keyFound = true;
+            return;
           }
           if (entry.value is Map || entry.value is List) {
             if (_expandedObjects[newList.toString()] == true && !keyFound) {
@@ -258,6 +259,8 @@ class _JsonEditorState extends State<JsonEditor> {
         }
       } else if (data is List) {
         for (int i = 0; i < data.length; i++) {
+          if (keyFound) return;
+          offset++;
           if (data[i] is Map || data[i] is List) {
             final newList = [...parents, i];
             if (_expandedObjects[newList.toString()] == true && !keyFound) {
@@ -269,7 +272,6 @@ class _JsonEditorState extends State<JsonEditor> {
     }
 
     calculateOffset(_data, ["object"], toFind);
-    print("found offset $offset");
     return offset;
   }
 
@@ -279,11 +281,13 @@ class _JsonEditorState extends State<JsonEditor> {
       [..._matchedKeysLocation[index]]..removeLast(),
     );
     if (needsRebuilding) setState(() {});
-    _scrollController.animateTo(
-      (getOffset(toFind) * _rowHeight) - 90,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeInOut,
-    );
+    Future.delayed(const Duration(milliseconds: 100), () {
+      _scrollController.animateTo(
+        (getOffset(toFind) * _rowHeight) - 90,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+      );
+    });
   }
 
   void onSearchAction(_SearchActions action) {
@@ -476,13 +480,6 @@ class _JsonEditorState extends State<JsonEditor> {
                     ),
                     if (widget.actions.isNotEmpty) const SizedBox(width: 20),
                     ...widget.actions,
-                    // TODO: remove this faltu widget
-                    TextButton(
-                      onPressed: () {
-                        print(_expandedObjects);
-                      },
-                      child: const Text("Print"),
-                    ),
                   ],
                 ),
               ),
@@ -1179,8 +1176,8 @@ class _SearchField extends StatelessWidget {
             cursorHeight: 12,
             decoration: const InputDecoration(
               hintText: "Search keys",
-              hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
-              constraints: BoxConstraints(maxWidth: 130),
+              hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
+              constraints: BoxConstraints(maxWidth: 100),
               border: InputBorder.none,
               fillColor: Colors.transparent,
               filled: true,
