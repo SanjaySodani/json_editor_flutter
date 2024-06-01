@@ -1,13 +1,13 @@
 # JsonEditor class
 
-Edit your JSON object with this package. Create, edit and delete objects using this user friendly widget. 
+Edit your JSON object with this package. Create, edit and format objects using this user friendly widget. 
 
 See the sample below for an example.
 
-## [Live Demo](https://json-editor-flutter.netlify.app/)
+## [JsonEditor Live Demo](https://json-editor-flutter.netlify.app/)
 
 ## Screenshot
-![JSON Editor](https://raw.githubusercontent.com/SanjaySodani/media/main/jsoneditor.png)
+![JsonEditor](https://raw.githubusercontent.com/SanjaySodani/media/main/jsoneditor.png)
 
 ## Getting started
 - Add the package in your flutter project.  Run this command in terminal `flutter pub add json_editor_flutter`.
@@ -15,15 +15,15 @@ See the sample below for an example.
 
 ## Using [JsonEditor](https://pub.dev/packages/json_editor_flutter)
 
-JSON can be edited in two ways, UI editor or text editor. You can disable either of them.
+JSON can be edited in two ways, Tree editor or text editor. You can disable either of them.
 
-When UI editor is active, you can disable adding/deleting keys by using [enableMoreOptions] and can disable key editing by using [enableKeyEdit].
+When UI editor is active, you can disable adding/deleting keys by using `enableMoreOptions`. Editing keys and values can also be disabled by using `enableKeyEdit` and `enableValueEdit`.
 
-When text editor is active, it will simply ignore [enableKeyEdit] and [enableMoreOptions].
+When text editor is active, it will simply ignore `enableMoreOptions`, `enableKeyEdit` and `enableValueEdit`.
 
-[duration] is the debounce time for [onChanged] function. Defaults to 500 milliseconds.
+`duration` is the debounce time for `onChanged` function. Defaults to 500 milliseconds.
 
-[editors] is the supported list of editors. First element will be used as default editor. Defaults to `[Editors.tree, Editors.text]`.
+`editors` is the supported list of editors. First element will be used as default editor. Defaults to [Editors.tree, Editors.text].
 
 ## Example
 ```dart
@@ -64,7 +64,7 @@ enum  Editors { tree, text }
 | editors                | List<Editors>| [tree, text]  | List of supported editors, first element will be used as default editor
 | actions                | List\<Widget>| []            | A list of Widgets to display in a row at the end of header
 | enableHorizontalScroll | bool         | false         | Enables horizontal scroll for the tree view
-| searchDuration         | Duration     | 600 ms        | Debounce duration for search function
+| searchDuration         | Duration     | 500 ms        | Debounce duration for search function
 
 
 ## Additional information

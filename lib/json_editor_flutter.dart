@@ -40,29 +40,18 @@ enum _SearchActions { next, prev }
 /// Supported editors for JSON Editor.
 enum Editors { tree, text }
 
-/// JSON can be edited in two ways, UI editor or text editor. You can disable
-/// either of them.
-///
-/// When UI editor is active, you can disable adding/deleting keys by using
-/// [enableMoreOptions] and can disable key editing by using [enableKeyEdit].
-///
-/// When text editor is active, it will simply ignore [enableKeyEdit] and
-/// [enableMoreOptions].
-///
-/// [duration] is the debounce time for [onChanged] function. Defaults to
-/// 500 milliseconds.
-///
-/// [editors] is the supported list of editors. First element will be
-/// used as default editor. Defaults to `[Editors.tree, Editors.text]`.
+/// Edit your JSON object with this Widget. Create, edit and format objects
+/// using this user friendly widget.
 class JsonEditor extends StatefulWidget {
-  /// JSON can be edited in two ways, UI editor or text editor. You can disable
+  /// JSON can be edited in two ways, Tree editor or text editor. You can disable
   /// either of them.
   ///
   /// When UI editor is active, you can disable adding/deleting keys by using
-  /// [enableMoreOptions] and can disable key editing by using [enableKeyEdit].
+  /// [enableMoreOptions]. Editing keys and values can also be disabled by using
+  /// [enableKeyEdit] and [enableValueEdit].
   ///
-  /// When text editor is active, it will simply ignore [enableKeyEdit] and
-  /// [enableMoreOptions].
+  /// When text editor is active, it will simply ignore [enableMoreOptions],
+  /// [enableKeyEdit] and [enableValueEdit].
   ///
   /// [duration] is the debounce time for [onChanged] function. Defaults to
   /// 500 milliseconds.
@@ -81,7 +70,7 @@ class JsonEditor extends StatefulWidget {
     this.themeColor,
     this.actions = const [],
     this.enableHorizontalScroll = false,
-    this.searchDuration = const Duration(milliseconds: 600),
+    this.searchDuration = const Duration(milliseconds: 500),
   }) : assert(editors.length > 0, "editors list cannot be empty");
 
   /// JSON string to be edited.
@@ -281,7 +270,7 @@ class _JsonEditorState extends State<JsonEditor> {
       [..._matchedKeysLocation[index]]..removeLast(),
     );
     if (needsRebuilding) setState(() {});
-    Future.delayed(const Duration(milliseconds: 100), () {
+    Future.delayed(const Duration(milliseconds: 150), () {
       _scrollController.animateTo(
         (getOffset(toFind) * _rowHeight) - 90,
         duration: const Duration(milliseconds: 200),
