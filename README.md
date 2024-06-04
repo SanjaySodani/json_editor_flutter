@@ -65,7 +65,7 @@ enum  Editors { tree, text }
 | actions                | List\<Widget>| []            | A list of Widgets to display in a row at the end of header
 | enableHorizontalScroll | bool         | false         | Enables horizontal scroll for the tree view
 | searchDuration         | Duration     | 500 ms        | Debounce duration for search function
-
+| hideEditorsMenuButton  | bool         | false         | Hides the option of changing editor
 
 ## Additional information
 > You can raise an issue/feature request on github [Json Editor Issues](https://github.com/SanjaySodani/json_editor_flutter/issues)

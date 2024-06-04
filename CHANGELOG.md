@@ -1,3 +1,6 @@
+# 1.4.1
+- [Added]: `hideEditorsMenuButton` parameter to hide the editors menu button.
+
 # 1.4.0
 - [Optimization]: **Search functionality**, only expands the required objects
 - [Removed]: `beforeScrollDuration` parameter

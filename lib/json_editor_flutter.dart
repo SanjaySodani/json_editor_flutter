@@ -71,6 +71,7 @@ class JsonEditor extends StatefulWidget {
     this.actions = const [],
     this.enableHorizontalScroll = false,
     this.searchDuration = const Duration(milliseconds: 500),
+    this.hideEditorsMenuButton = false,
   }) : assert(editors.length > 0, "editors list cannot be empty");
 
   /// JSON string to be edited.
@@ -105,6 +106,9 @@ class JsonEditor extends StatefulWidget {
 
   /// Debounce duration for search function.
   final Duration searchDuration;
+
+  /// Hides the option of changing editor. Defaults to `false`.
+  final bool hideEditorsMenuButton;
 
   @override
   State<JsonEditor> createState() => _JsonEditorState();
@@ -372,50 +376,53 @@ class _JsonEditorState extends State<JsonEditor> {
                 ),
                 child: Row(
                   children: [
-                    PopupMenuButton<Editors>(
-                      initialValue: _editor,
-                      tooltip: 'Change editor',
-                      padding: EdgeInsets.zero,
-                      onSelected: (value) {
-                        if (value == Editors.text) {
-                          _controller.text = _stringifyData(_data, 0, true);
-                        }
-                        setState(() {
-                          _editor = value;
-                        });
-                      },
-                      position: PopupMenuPosition.under,
-                      enabled: widget.editors.length > 1,
-                      constraints: const BoxConstraints(
-                        minWidth: 50,
-                        maxWidth: 150,
+                    if (!widget.hideEditorsMenuButton)
+                      PopupMenuButton<Editors>(
+                        initialValue: _editor,
+                        tooltip: 'Change editor',
+                        padding: EdgeInsets.zero,
+                        onSelected: (value) {
+                          if (value == Editors.text) {
+                            _controller.text = _stringifyData(_data, 0, true);
+                          }
+                          setState(() {
+                            _editor = value;
+                          });
+                        },
+                        position: PopupMenuPosition.under,
+                        enabled: widget.editors.length > 1,
+                        constraints: const BoxConstraints(
+                          minWidth: 50,
+                          maxWidth: 150,
+                        ),
+                        itemBuilder: (context) {
+                          return <PopupMenuEntry<Editors>>[
+                            PopupMenuItem<Editors>(
+                              height: _popupMenuHeight,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
+                              enabled: widget.editors.contains(Editors.tree),
+                              value: Editors.tree,
+                              child: const Text("Tree"),
+                            ),
+                            PopupMenuItem<Editors>(
+                              height: _popupMenuHeight,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
+                              enabled: widget.editors.contains(Editors.text),
+                              value: Editors.text,
+                              child: const Text("Text"),
+                            ),
+                          ];
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(_editor.name, style: _textStyle),
+                            const Icon(Icons.arrow_drop_down, size: 20),
+                          ],
+                        ),
                       ),
-                      itemBuilder: (context) {
-                        return <PopupMenuEntry<Editors>>[
-                          PopupMenuItem<Editors>(
-                            height: _popupMenuHeight,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            enabled: widget.editors.contains(Editors.tree),
-                            value: Editors.tree,
-                            child: const Text("Tree"),
-                          ),
-                          PopupMenuItem<Editors>(
-                            height: _popupMenuHeight,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            enabled: widget.editors.contains(Editors.text),
-                            value: Editors.text,
-                            child: const Text("Text"),
-                          ),
-                        ];
-                      },
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(_editor.name, style: _textStyle),
-                          const Icon(Icons.arrow_drop_down, size: 20),
-                        ],
-                      ),
-                    ),
                     const Spacer(),
                     if (_editor == Editors.text) ...[
                       const SizedBox(width: 20),
