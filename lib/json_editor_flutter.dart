@@ -72,6 +72,7 @@ class JsonEditor extends StatefulWidget {
     this.enableHorizontalScroll = false,
     this.searchDuration = const Duration(milliseconds: 500),
     this.hideEditorsMenuButton = false,
+    this.expandedObjects = const [],
   }) : assert(editors.length > 0, "editors list cannot be empty");
 
   /// JSON string to be edited.
@@ -110,6 +111,40 @@ class JsonEditor extends StatefulWidget {
   /// Hides the option of changing editor. Defaults to `false`.
   final bool hideEditorsMenuButton;
 
+  /// [expandedObjects] refers to the objects that will be expanded by
+  /// default. Index can be provided when the data is a List.
+  ///
+  /// Examples:
+  /// ```dart
+  /// data = {
+  ///   "hobbies": ["Reading books", "Playing Cricket"],
+  ///   "education": [
+  ///     {"name": "Bachelor of Engineering", "marks": 75},
+  ///     {"name": "Master of Engineering", "marks": 72},
+  ///   ],
+  /// }
+  /// ```
+  ///
+  /// For the given data
+  /// 1. To expand education pass => `["education"]`
+  /// 2. To expand hobbies and education pass => `["hobbies", "education"]`
+  /// 3. To expand the first element (index 0) of education list, this means
+  /// we need to expand education too. In this case you need not to pass
+  /// "education" separately. Just pass a list of all nested objects =>
+  /// `[["education", 0]]`
+  ///
+  /// ```dart
+  /// JsonEditor(
+  ///   expandedObjects: const [
+  ///     "hobbies",
+  ///     ["education", 0] // expands nested object in education
+  ///   ],
+  ///   onChanged: (_) {},
+  ///   json: jsonEncode(data),
+  /// )
+  /// ```
+  final List expandedObjects;
+
   @override
   State<JsonEditor> createState() => _JsonEditorState();
 }
@@ -131,7 +166,24 @@ class _JsonEditorState extends State<JsonEditor> {
   int? _results;
   late final _expandedObjects = <String, bool>{
     ["object"].toString(): true,
+    if (widget.expandedObjects.isNotEmpty) ...getExpandedParents(),
   };
+
+  Map<String, bool> getExpandedParents() {
+    final map = <String, bool>{};
+    for (var key in widget.expandedObjects) {
+      if (key is List) {
+        final newExpandList = ["object", ...key];
+        for (int i = newExpandList.length - 1; i > 0; i--) {
+          map[newExpandList.toString()] = true;
+          newExpandList.removeLast();
+        }
+      } else {
+        map[["object", key].toString()] = true;
+      }
+    }
+    return map;
+  }
 
   void callOnChanged() {
     if (_timer?.isActive ?? false) _timer?.cancel();

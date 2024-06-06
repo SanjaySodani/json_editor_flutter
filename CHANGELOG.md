@@ -1,9 +1,12 @@
+# 1.4.2
+- [Added]: `expandedObjects` parameter to expand the objects.
+
 # 1.4.1
 - [Added]: `hideEditorsMenuButton` parameter to hide the editors menu button.
 
 # 1.4.0
-- [Optimization]: **Search functionality**, only expands the required objects
-- [Removed]: `beforeScrollDuration` parameter
+- [Optimization]: **Search functionality**, only expands the required objects.
+- [Removed]: `beforeScrollDuration` parameter.
 
 # 1.3.1
 - [Removed]: Default sorting

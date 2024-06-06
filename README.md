@@ -50,6 +50,37 @@ Supported editors for JSON Editor.
 enum  Editors { tree, text }
 ```
 
+## Customization
+
+### **expandedObjects**
+[expandedObjects] refers to the objects that will be expanded by default. Index can be provided when the data is a List.
+
+```dart
+data = {
+  "hobbies": ["Reading books", "Playing Cricket"],
+  "education": [
+    {"name": "Bachelor of Engineering", "marks": 75},
+    {"name": "Master of Engineering", "marks": 72},
+  ],
+}
+```
+
+For the given data
+1. To expand education pass => `["education"]`
+2. To expand hobbies and education pass => `["hobbies", "education"]`
+3. To expand the first element (index 0) of education list, this means we need to expand education too. In this case you need not to pass "education" separately. Just pass a list of all nested objects => `[["education", 0]]`
+
+```dart
+JsonEditor(
+  expandedObjects: const [
+    "hobbies",
+    ["education", 0] // expands nested object in `education`
+  ],
+  onChanged: (_) {},
+  json: jsonEncode(data),
+)
+```
+
 ## Properties
 
 | Property               | Type         | Default Value | Description                                                                                                                                   |
@@ -66,6 +97,7 @@ enum  Editors { tree, text }
 | enableHorizontalScroll | bool         | false         | Enables horizontal scroll for the tree view
 | searchDuration         | Duration     | 500 ms        | Debounce duration for search function
 | hideEditorsMenuButton  | bool         | false         | Hides the option of changing editor
+| expandedObjects        | List         | []            | List of objects to expand by default
 
 ## Additional information
 > You can raise an issue/feature request on github [Json Editor Issues](https://github.com/SanjaySodani/json_editor_flutter/issues)
